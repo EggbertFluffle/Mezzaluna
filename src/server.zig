@@ -1,86 +1,84 @@
+const Server = @This();
+
 const std = @import("std");
 const gpa = std.heap.c_allocator;
 
 const wl = @import("wayland").server.wl;
 const wlr = @import("wlroots");
 
-const Output = @import("output.zig").Output;
+const Output = @import("output.zig");
 
-pub const Server = struct {
-  allocator: *wlr.Allocator,
+allocator: *wlr.Allocator,
+backend: *wlr.Backend,
+compositor: *wlr.Compositor,
+event_loop: *wl.EventLoop,
+output_layout: *wlr.OutputLayout,
+renderer: *wlr.Renderer,
+scene: *wlr.Scene,
+scene_output_layout: *wlr.SceneOutputLayout,
+seat: *wlr.Seat,
+session: ?*wlr.Session,
+shm: *wlr.Shm,
+wl_server: *wl.Server,
+xdg_shell: *wlr.XdgShell,
 
-  wl_server: *wl.Server,
-  event_loop: *wl.EventLoop,
-  shm: *wlr.Shm,
-  scene: *wlr.Scene,
-  output_layout: *wlr.OutputLayout,
-  scene_output_layout: *wlr.SceneOutputLayout,
-  xdg_shell: *wlr.XdgShell,
-  seat: *wlr.Seat,
+// Listeners
+new_output: wl.Listener(*wlr.Output) = .init(newOutput),
 
-  session: ?*wlr.Session,
-  backend: *wlr.Backend,
-  renderer: *wlr.Renderer,
+pub fn init(server: *Server) !void {
+  const wl_server = try wl.Server.create();
+  const event_loop = wl_server.getEventLoop();
 
-  compositor: *wlr.Compositor,
+  var session: ?*wlr.Session = undefined;
+  const backend = try wlr.Backend.autocreate(event_loop, &session);
+  const renderer = try wlr.Renderer.autocreate(backend);
+  const output_layout = try wlr.OutputLayout.create(wl_server);
+  const scene = try wlr.Scene.create();
 
-  new_output: wl.Listener(*wlr.Output) = .init(newOutput),
+  // Do we need to fail if session is NULL
 
-  pub fn init(server: *Server) !void {
-    const wl_server = try wl.Server.create();
-    const event_loop = wl_server.getEventLoop();
+  server.* = .{
+    .wl_server = wl_server,
+    .backend = backend,
+    .renderer = renderer,
+    .allocator = try wlr.Allocator.autocreate(backend, renderer),
+    .scene = scene,
+    .output_layout = output_layout,
+    .scene_output_layout = try scene.attachOutputLayout(output_layout),
+    .xdg_shell = try wlr.XdgShell.create(wl_server, 2),
+    .event_loop = event_loop,
+    .session = session,
+    .compositor = try wlr.Compositor.create(wl_server, 6, renderer),
+    .shm = try wlr.Shm.createWithRenderer(wl_server, 1, renderer),
+    .seat = try wlr.Seat.create(wl_server, "default"),
+  };
 
-    var session: ?*wlr.Session = undefined;
-    const backend = try wlr.Backend.autocreate(event_loop, &session);
-    const renderer = try wlr.Renderer.autocreate(backend);
-    const output_layout = try wlr.OutputLayout.create(wl_server);
-    const scene = try wlr.Scene.create();
+  try server.renderer.initServer(wl_server);
 
-    // Do we need to fail if session is NULL
+  _ = try wlr.Compositor.create(server.wl_server, 6, server.renderer);
+  _ = try wlr.Subcompositor.create(server.wl_server);
+  _ = try wlr.DataDeviceManager.create(server.wl_server);
 
-    server.* = .{
-      .wl_server = wl_server,
-      .backend = backend,
-      .renderer = renderer,
-      .allocator = try wlr.Allocator.autocreate(backend, renderer),
-      .scene = scene,
-      .output_layout = output_layout,
-      .scene_output_layout = try scene.attachOutputLayout(output_layout),
-      .xdg_shell = try wlr.XdgShell.create(wl_server, 2),
-      .event_loop = event_loop,
-      .session = session,
-      .compositor = try wlr.Compositor.create(wl_server, 6, renderer),
-      .shm = try wlr.Shm.createWithRenderer(wl_server, 1, renderer),
-      .seat = try wlr.Seat.create(wl_server, "default"),
-    };
+  server.backend.events.new_output.add(&server.new_output);
+}
 
-    try server.renderer.initServer(wl_server);
+fn newOutput(listener: *wl.Listener(*wlr.Output), wlr_output: *wlr.Output) void {
+  const server: *Server = @fieldParentPtr("new_output", listener);
 
-    _ = try wlr.Compositor.create(server.wl_server, 6, server.renderer);
-    _ = try wlr.Subcompositor.create(server.wl_server);
-    _ = try wlr.DataDeviceManager.create(server.wl_server);
+  if (!wlr_output.initRender(server.allocator, server.renderer)) return;
 
-    server.backend.events.new_output.add(&server.new_output);
+  var state = wlr.Output.State.init();
+  defer state.finish();
+
+  state.setEnabled(true);
+  if (wlr_output.preferredMode()) |mode| {
+    state.setMode(mode);
   }
+  if (!wlr_output.commitState(&state)) return;
 
-  fn newOutput(listener: *wl.Listener(*wlr.Output), wlr_output: *wlr.Output) void {
-    const server: *Server = @fieldParentPtr("new_output", listener);
-
-    if (!wlr_output.initRender(server.allocator, server.renderer)) return;
-
-    var state = wlr.Output.State.init();
-    defer state.finish();
-
-    state.setEnabled(true);
-    if (wlr_output.preferredMode()) |mode| {
-      state.setMode(mode);
-    }
-    if (!wlr_output.commitState(&state)) return;
-
-    Output.create(server, wlr_output) catch {
-      std.log.err("failed to allocate new output", .{});
-      wlr_output.destroy();
-      return;
-    };
-  }
-};
+  Output.create(server, wlr_output) catch {
+    std.log.err("failed to allocate new output", .{});
+    wlr_output.destroy();
+    return;
+  };
+}

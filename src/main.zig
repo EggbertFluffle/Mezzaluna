@@ -1,7 +1,7 @@
 const std = @import("std");
 const wlr = @import("wlroots");
 
-const Server = @import("server.zig").Server;
+const Server = @import("server.zig");
 
 const gpa = std.heap.c_allocator;
 
