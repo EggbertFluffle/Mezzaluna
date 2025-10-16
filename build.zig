@@ -14,7 +14,6 @@ pub fn build(b: *std.Build) void {
   // The below is copied from tinywl
   // TODO: Ensure versioning is correct
   // TODO: Ensure paths for system protocols are correct
-
   const scanner = Scanner.create(b, .{});
   scanner.addSystemProtocol("stable/xdg-shell/xdg-shell.xml");
   scanner.addSystemProtocol("stable/tablet/tablet-v2.xml");

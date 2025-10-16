@@ -10,13 +10,7 @@
     * Not using the bindings is most likey a LOT of extra work
 
 # Names
-* Selene
-* Chandra - wtf
-* Phoeb - Horrible to write in code
 * Mezzaluna (mez)
-* Gibbous (gib)
-* Monzonite (monz)
-* Slasagna
 
 # Style Guide
 
