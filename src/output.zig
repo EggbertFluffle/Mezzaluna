@@ -27,6 +27,8 @@ pub const Output = struct {
     wlr_output.events.request_state.add(&output.request_state);
     wlr_output.events.destroy.add(&output.destroy);
 
+    std.log.debug("adding output: {s}", .{output.*.wlr_output.*.name});
+
     const layout_output = try server.output_layout.addAuto(wlr_output);
 
     const scene_output = try server.scene.createSceneOutput(wlr_output);
@@ -49,11 +51,15 @@ pub const Output = struct {
   ) void {
     const output: *Output = @fieldParentPtr("request_state", listener);
 
-    _ = output.wlr_output.commitState(event.state);
+    if (!output.wlr_output.commitState(event.state)) {
+      std.log.warn("failed to set output state {}", .{event.state});
+    }
   }
 
   pub fn handleDestroy(listener: *wl.Listener(*wlr.Output), _: *wlr.Output) void {
     const output: *Output = @fieldParentPtr("destroy", listener);
+
+    std.log.debug("removing output: {s}", .{output.*.wlr_output.*.name});
 
     output.frame.link.remove();
     output.request_state.link.remove();
