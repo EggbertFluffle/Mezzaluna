@@ -7,7 +7,7 @@ pub const Server = struct {
   server: *wl.Server,
   event_loop: *wl.EventLoop,
 
-  session: *wlr.Session,
+  session: ?*wlr.Session,
   backend: *wlr.Backend,
   renderer: *wlr.Renderer,
 

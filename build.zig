@@ -39,8 +39,8 @@ pub fn build(b: *std.Build) void {
   wlroots.resolved_target = target;
   wlroots.linkSystemLibrary("wlroots-0.19", .{});
 
-  const wwm = b.addExecutable(.{
-    .name = "wwm",
+  const mez = b.addExecutable(.{
+    .name = "mez",
     .root_module = b.createModule(.{
       .root_source_file = b.path("src/main.zig"),
       .target = target,
@@ -48,20 +48,20 @@ pub fn build(b: *std.Build) void {
     }),
   });
 
-  wwm.linkLibC();
+  mez.linkLibC();
 
-  wwm.root_module.addImport("wayland", wayland);
-  wwm.root_module.addImport("xkbcommon", xkbcommon);
-  wwm.root_module.addImport("wlroots", wlroots);
+  mez.root_module.addImport("wayland", wayland);
+  mez.root_module.addImport("xkbcommon", xkbcommon);
+  mez.root_module.addImport("wlroots", wlroots);
 
-  wwm.linkSystemLibrary("wayland-server");
-  wwm.linkSystemLibrary("xkbcommon");
-  wwm.linkSystemLibrary("pixman-1");
+  mez.linkSystemLibrary("wayland-server");
+  mez.linkSystemLibrary("xkbcommon");
+  mez.linkSystemLibrary("pixman-1");
 
-  b.installArtifact(wwm);
+  b.installArtifact(mez);
 
   const run_step = b.step("run", "Run the app");
-  const run_cmd = b.addRunArtifact(wwm);
+  const run_cmd = b.addRunArtifact(mez);
   run_step.dependOn(&run_cmd.step);
   run_cmd.step.dependOn(b.getInstallStep());
   if (b.args) |args| {

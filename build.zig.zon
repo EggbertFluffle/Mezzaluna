@@ -1,7 +1,7 @@
 .{
-    .name = .wwm,
+    .name = .mez,
     .version = "0.0.1",
-    .fingerprint = 0xfd825513ca495f0b, // Changing this has security and trust implications.
+    .fingerprint = 0x171486a117c5ee69, // Changing this has security and trust implications.
     .minimum_zig_version = "0.15.2",
     .dependencies = .{
         .wayland = .{
