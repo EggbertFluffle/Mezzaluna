@@ -1,11 +1,78 @@
+const std = @import("std");
+const posix = std.posix;
+
 const wl = @import("wayland").server.wl;
 const wlr = @import("wlroots");
+
+const gpa = std.heap.c_allocator;
+
+const Output = struct {
+    server: *Server,
+    wlr_output: *wlr.Output,
+
+    frame: wl.Listener(*wlr.Output) = .init(handleFrame),
+    request_state: wl.Listener(*wlr.Output.event.RequestState) = .init(handleRequestState),
+    destroy: wl.Listener(*wlr.Output) = .init(handleDestroy),
+
+    // The wlr.Output should be destroyed by the caller on failure to trigger cleanup.
+    fn create(server: *Server, wlr_output: *wlr.Output) !void {
+        const output = try gpa.create(Output);
+
+        output.* = .{
+            .server = server,
+            .wlr_output = wlr_output,
+        };
+        wlr_output.events.frame.add(&output.frame);
+        wlr_output.events.request_state.add(&output.request_state);
+        wlr_output.events.destroy.add(&output.destroy);
+
+        const layout_output = try server.output_layout.addAuto(wlr_output);
+
+        const scene_output = try server.scene.createSceneOutput(wlr_output);
+        server.scene_output_layout.addOutput(layout_output, scene_output);
+    }
+
+    fn handleFrame(listener: *wl.Listener(*wlr.Output), _: *wlr.Output) void {
+        const output: *Output = @fieldParentPtr("frame", listener);
+
+        const scene_output = output.server.scene.getSceneOutput(output.wlr_output).?;
+        _ = scene_output.commit(null);
+
+        var now = posix.clock_gettime(posix.CLOCK.MONOTONIC) catch @panic("CLOCK_MONOTONIC not supported");
+        scene_output.sendFrameDone(&now);
+    }
+
+    fn handleRequestState(
+        listener: *wl.Listener(*wlr.Output.event.RequestState),
+        event: *wlr.Output.event.RequestState,
+    ) void {
+        const output: *Output = @fieldParentPtr("request_state", listener);
+
+        _ = output.wlr_output.commitState(event.state);
+    }
+
+    fn handleDestroy(listener: *wl.Listener(*wlr.Output), _: *wlr.Output) void {
+        const output: *Output = @fieldParentPtr("destroy", listener);
+
+        output.frame.link.remove();
+        output.request_state.link.remove();
+        output.destroy.link.remove();
+
+        gpa.destroy(output);
+    }
+};
 
 pub const Server = struct {
   allocator: *wlr.Allocator,
 
-  server: *wl.Server,
+  wl_server: *wl.Server,
   event_loop: *wl.EventLoop,
+  shm: *wlr.Shm,
+  scene: *wlr.Scene,
+  output_layout: *wlr.OutputLayout,
+  scene_output_layout: *wlr.SceneOutputLayout,
+  xdg_shell: *wlr.XdgShell,
+  seat: *wlr.Seat,
 
   session: ?*wlr.Session,
   backend: *wlr.Backend,
@@ -13,27 +80,63 @@ pub const Server = struct {
 
   compositor: *wlr.Compositor,
 
-  pub fn init() !Server {
-    const server = try wl.Server.create();
-    const event_loop = server.getEventLoop();
+  new_output: wl.Listener(*wlr.Output) = .init(newOutput),
+
+  pub fn init(server: *Server) !void {
+    const wl_server = try wl.Server.create();
+    const event_loop = wl_server.getEventLoop();
 
     var session: ?*wlr.Session = undefined;
     const backend = try wlr.Backend.autocreate(event_loop, &session);
     const renderer = try wlr.Renderer.autocreate(backend);
+    const output_layout = try wlr.OutputLayout.create(wl_server);
+    const scene = try wlr.Scene.create();
 
     // Do we need to fail if session is NULL
 
-    return .{
-      .server = server,
-      .event_loop = event_loop,
-
-      .session = session,
+    server.* = .{
+      .wl_server = wl_server,
       .backend = backend,
       .renderer = renderer,
-
       .allocator = try wlr.Allocator.autocreate(backend, renderer),
+      .scene = scene,
+      .output_layout = output_layout,
+      .scene_output_layout = try scene.attachOutputLayout(output_layout),
+      .xdg_shell = try wlr.XdgShell.create(wl_server, 2),
+      .event_loop = event_loop,
+      .session = session,
+      .compositor = try wlr.Compositor.create(wl_server, 6, renderer),
+      .shm = try wlr.Shm.createWithRenderer(wl_server, 1, renderer),
+      .seat = try wlr.Seat.create(wl_server, "default"),
+    };
 
-      .compositor = try wlr.Compositor.create(server, 6, renderer),
+    try server.renderer.initServer(wl_server);
+
+    _ = try wlr.Compositor.create(server.wl_server, 6, server.renderer);
+    _ = try wlr.Subcompositor.create(server.wl_server);
+    _ = try wlr.DataDeviceManager.create(server.wl_server);
+
+    server.backend.events.new_output.add(&server.new_output);
+  }
+
+  fn newOutput(listener: *wl.Listener(*wlr.Output), wlr_output: *wlr.Output) void {
+    const server: *Server = @fieldParentPtr("new_output", listener);
+
+    if (!wlr_output.initRender(server.allocator, server.renderer)) return;
+
+    var state = wlr.Output.State.init();
+    defer state.finish();
+
+    state.setEnabled(true);
+    if (wlr_output.preferredMode()) |mode| {
+      state.setMode(mode);
+    }
+    if (!wlr_output.commitState(&state)) return;
+
+    Output.create(server, wlr_output) catch {
+      std.log.err("failed to allocate new output", .{});
+      wlr_output.destroy();
+      return;
     };
   }
 };

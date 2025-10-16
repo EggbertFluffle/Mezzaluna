@@ -18,7 +18,7 @@ pub fn build(b: *std.Build) void {
   scanner.addSystemProtocol("stable/xdg-shell/xdg-shell.xml");
   scanner.addSystemProtocol("stable/tablet/tablet-v2.xml");
 
-  scanner.generate("wl_compositor", 4);
+  scanner.generate("wl_compositor", 6);
   scanner.generate("wl_subcompositor", 1);
   scanner.generate("wl_shm", 1);
   scanner.generate("wl_output", 4);
