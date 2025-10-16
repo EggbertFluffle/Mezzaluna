@@ -2,38 +2,38 @@ const wl = @import("wayland").server.wl;
 const wlr = @import("wlroots");
 
 pub const Server = struct {
-	allocator: *wlr.Allocator,
+  allocator: *wlr.Allocator,
 
-	server: *wl.Server,
-	event_loop: *wl.EventLoop,
+  server: *wl.Server,
+  event_loop: *wl.EventLoop,
 
-	session: *wlr.Session,
-	backend: *wlr.Backend,
-	renderer: *wlr.Renderer,
+  session: *wlr.Session,
+  backend: *wlr.Backend,
+  renderer: *wlr.Renderer,
 
-	compositor: *wlr.Compositor,
+  compositor: *wlr.Compositor,
 
-	pub fn init() !Server {
-		const server = try wl.Server.create();
-		const event_loop = server.getEventLoop();
+  pub fn init() !Server {
+    const server = try wl.Server.create();
+    const event_loop = server.getEventLoop();
 
-		var session: ?*wlr.Session = undefined;
-		const backend = try wlr.Backend.autocreate(event_loop, &session);
-		const renderer = try wlr.Renderer.autocreate(backend);
+    var session: ?*wlr.Session = undefined;
+    const backend = try wlr.Backend.autocreate(event_loop, &session);
+    const renderer = try wlr.Renderer.autocreate(backend);
 
-		// Do we need to fail if session is NULL
+    // Do we need to fail if session is NULL
 
-		return .{
-			.server = server,
-			.event_loop = event_loop,
+    return .{
+      .server = server,
+      .event_loop = event_loop,
 
-			.session = session,
-			.backend = backend,
-			.renderer = renderer,
+      .session = session,
+      .backend = backend,
+      .renderer = renderer,
 
-			.allocator = try wlr.Allocator.autocreate(backend, renderer),
+      .allocator = try wlr.Allocator.autocreate(backend, renderer),
 
-			.compositor = try wlr.Compositor.create(server, 6, renderer),
-		};
-	}
+      .compositor = try wlr.Compositor.create(server, 6, renderer),
+    };
+  }
 };
