@@ -7,6 +7,7 @@ const wl = @import("wayland").server.wl;
 const wlr = @import("wlroots");
 
 const Output = @import("output.zig");
+const Keyboard = @import("keyboard.zig");
 
 allocator: *wlr.Allocator,
 backend: *wlr.Backend,
@@ -16,14 +17,18 @@ output_layout: *wlr.OutputLayout,
 renderer: *wlr.Renderer,
 scene: *wlr.Scene,
 scene_output_layout: *wlr.SceneOutputLayout,
-seat: *wlr.Seat,
 session: ?*wlr.Session,
 shm: *wlr.Shm,
 wl_server: *wl.Server,
 xdg_shell: *wlr.XdgShell,
 
+// Input things
+seat: *wlr.Seat,
+keyboards: wl.list.Head(Keyboard, .link) = undefined,
+
 // Listeners
 new_output: wl.Listener(*wlr.Output) = .init(newOutput),
+new_input: wl.Listener(*wlr.InputDevice) = .init(newInput),
 
 pub fn init(server: *Server) !void {
   const wl_server = try wl.Server.create();
@@ -55,11 +60,10 @@ pub fn init(server: *Server) !void {
 
   try server.renderer.initServer(wl_server);
 
-  _ = try wlr.Compositor.create(server.wl_server, 6, server.renderer);
-  _ = try wlr.Subcompositor.create(server.wl_server);
-  _ = try wlr.DataDeviceManager.create(server.wl_server);
-
   server.backend.events.new_output.add(&server.new_output);
+  server.backend.events.new_input.add(&server.new_input);
+
+  server.keyboards.init();
 }
 
 fn newOutput(listener: *wl.Listener(*wlr.Output), wlr_output: *wlr.Output) void {
@@ -81,4 +85,22 @@ fn newOutput(listener: *wl.Listener(*wlr.Output), wlr_output: *wlr.Output) void 
     wlr_output.destroy();
     return;
   };
+}
+
+fn newInput(listener: *wl.Listener(*wlr.InputDevice), device: *wlr.InputDevice) void {
+  const server: *Server = @fieldParentPtr("new_input", listener);
+  switch (device.type) {
+    .keyboard => Keyboard.create(server, device) catch |err| {
+      std.log.err("failed to create keyboard: {}", .{err});
+      return;
+    },
+    // TODO: impl cursor
+    // .pointer => server.cursor.attachInputDevice(device),
+    else => {},
+  }
+
+  server.seat.setCapabilities(.{
+    .pointer = true,
+    .keyboard = server.keyboards.length() > 0,
+  });
 }
