@@ -9,7 +9,7 @@ const gpa = std.heap.c_allocator;
 pub var server: Server = undefined;
 
 pub fn main() !void {
-  wlr.log.init(.debug, null);
+  // wlr.log.init(.debug, null);
 
   std.log.info("Starting mezzaluna", .{});
 
