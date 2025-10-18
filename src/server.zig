@@ -66,6 +66,16 @@ pub fn init(server: *Server) !void {
   server.keyboards.init();
 }
 
+pub fn deinit(server: *Server) void {
+  server.wl_server.destroyClients();
+
+  server.new_input.link.remove();
+  server.new_output.link.remove();
+
+  server.backend.destroy();
+  server.wl_server.destroy();
+}
+
 fn newOutput(listener: *wl.Listener(*wlr.Output), wlr_output: *wlr.Output) void {
   const server: *Server = @fieldParentPtr("new_output", listener);
 

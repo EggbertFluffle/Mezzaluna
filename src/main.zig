@@ -11,6 +11,7 @@ pub fn main() !void {
 
   var server: Server = undefined;
   try server.init();
+  defer server.deinit();
 
   var buf: [11]u8 = undefined;
   const socket = try server.wl_server.addSocketAuto(&buf);
