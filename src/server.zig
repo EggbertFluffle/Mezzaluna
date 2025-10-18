@@ -91,10 +91,21 @@ pub fn init(server: *Server) !void {
 pub fn deinit(server: *Server) void {
   server.wl_server.destroyClients();
 
+  server.cursor.destroy();
+  server.cursor_mgr.destroy();
+
   server.new_input.link.remove();
   server.new_output.link.remove();
+  server.cursor_motion.link.remove();
+  server.cursor_motion_absolute.link.remove();
+  server.cursor_button.link.remove();
+  server.cursor_axis.link.remove();
+  server.cursor_frame.link.remove();
+  server.request_set_cursor.link.remove();
+  server.request_set_selection.link.remove();
 
   server.backend.destroy();
+  server.seat.destroy();
   server.wl_server.destroy();
 }
 
