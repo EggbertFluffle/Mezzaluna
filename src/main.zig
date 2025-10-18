@@ -5,11 +5,14 @@ const Server = @import("server.zig").Server;
 
 const gpa = std.heap.c_allocator;
 
+
+pub var server: Server = undefined;
+
 pub fn main() !void {
   wlr.log.init(.debug, null);
-  std.debug.print("Starting mezzaluna", .{});
 
-  var server: Server = undefined;
+  std.log.info("Starting mezzaluna", .{});
+
   try server.init();
 
   var buf: [11]u8 = undefined;
@@ -25,10 +28,12 @@ pub fn main() !void {
     try child.spawn();
   }
 
+  std.log.info("Starting backend", .{});
   server.backend.start() catch |err| {
     std.debug.panic("Failed to start backend: {}", .{err});
     return;
   };
 
+  std.log.info("Starting server", .{});
   server.wl_server.run();
 }

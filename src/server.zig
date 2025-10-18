@@ -5,6 +5,7 @@ const wl = @import("wayland").server.wl;
 const wlr = @import("wlroots");
 
 const Output = @import("output.zig").Output;
+const Root = @import("root.zig").Root;
 
 pub const Server = struct {
   allocator: *wlr.Allocator,
@@ -14,7 +15,6 @@ pub const Server = struct {
   shm: *wlr.Shm,
   scene: *wlr.Scene,
   output_layout: *wlr.OutputLayout,
-  scene_output_layout: *wlr.SceneOutputLayout,
   xdg_shell: *wlr.XdgShell,
   seat: *wlr.Seat,
 
@@ -24,7 +24,7 @@ pub const Server = struct {
 
   compositor: *wlr.Compositor,
 
-  new_output: wl.Listener(*wlr.Output) = .init(newOutput),
+  root: Root,
 
   pub fn init(server: *Server) !void {
     const wl_server = try wl.Server.create();
@@ -45,13 +45,14 @@ pub const Server = struct {
       .allocator = try wlr.Allocator.autocreate(backend, renderer),
       .scene = scene,
       .output_layout = output_layout,
-      .scene_output_layout = try scene.attachOutputLayout(output_layout),
       .xdg_shell = try wlr.XdgShell.create(wl_server, 2),
       .event_loop = event_loop,
       .session = session,
       .compositor = try wlr.Compositor.create(wl_server, 6, renderer),
       .shm = try wlr.Shm.createWithRenderer(wl_server, 1, renderer),
       .seat = try wlr.Seat.create(wl_server, "default"),
+
+      .root = undefined,
     };
 
     try server.renderer.initServer(wl_server);
@@ -60,27 +61,6 @@ pub const Server = struct {
     _ = try wlr.Subcompositor.create(server.wl_server);
     _ = try wlr.DataDeviceManager.create(server.wl_server);
 
-    server.backend.events.new_output.add(&server.new_output);
-  }
-
-  fn newOutput(listener: *wl.Listener(*wlr.Output), wlr_output: *wlr.Output) void {
-    const server: *Server = @fieldParentPtr("new_output", listener);
-
-    if (!wlr_output.initRender(server.allocator, server.renderer)) return;
-
-    var state = wlr.Output.State.init();
-    defer state.finish();
-
-    state.setEnabled(true);
-    if (wlr_output.preferredMode()) |mode| {
-      state.setMode(mode);
-    }
-    if (!wlr_output.commitState(&state)) return;
-
-    Output.create(server, wlr_output) catch {
-      std.log.err("failed to allocate new output", .{});
-      wlr_output.destroy();
-      return;
-    };
+    try Root.init(&server.root);
   }
 };
