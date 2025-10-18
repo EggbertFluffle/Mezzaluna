@@ -8,6 +8,7 @@ const wlr = @import("wlroots");
 
 const Output = @import("output.zig");
 const Keyboard = @import("keyboard.zig");
+const Root = @import("root.zig").Root;
 
 allocator: *wlr.Allocator,
 backend: *wlr.Backend,
@@ -21,6 +22,7 @@ session: ?*wlr.Session,
 shm: *wlr.Shm,
 wl_server: *wl.Server,
 xdg_shell: *wlr.XdgShell,
+root: Root,
 
 // Input things
 seat: *wlr.Seat,
@@ -29,7 +31,6 @@ cursor: *wlr.Cursor,
 cursor_mgr: *wlr.XcursorManager,
 
 // Listeners
-new_output: wl.Listener(*wlr.Output) = .init(newOutput),
 new_input: wl.Listener(*wlr.InputDevice) = .init(newInput),
 cursor_motion: wl.Listener(*wlr.Pointer.event.Motion) = .init(cursorMotion),
 cursor_motion_absolute: wl.Listener(*wlr.Pointer.event.MotionAbsolute) = .init(cursorMotionAbsolute),
@@ -68,11 +69,11 @@ pub fn init(server: *Server) !void {
     .cursor = try wlr.Cursor.create(),
     // TODO: let the user configure a cursor theme and side lua
     .cursor_mgr = try wlr.XcursorManager.create(null, 24),
+    .root = undefined,
   };
 
   try server.renderer.initServer(wl_server);
-
-  server.backend.events.new_output.add(&server.new_output);
+  try Root.init(&server.root);
 
   server.backend.events.new_input.add(&server.new_input);
   server.seat.events.request_set_cursor.add(&server.request_set_cursor);
@@ -95,7 +96,6 @@ pub fn deinit(server: *Server) void {
   server.cursor_mgr.destroy();
 
   server.new_input.link.remove();
-  server.new_output.link.remove();
   server.cursor_motion.link.remove();
   server.cursor_motion_absolute.link.remove();
   server.cursor_button.link.remove();
@@ -107,27 +107,6 @@ pub fn deinit(server: *Server) void {
   server.backend.destroy();
   server.seat.destroy();
   server.wl_server.destroy();
-}
-
-fn newOutput(listener: *wl.Listener(*wlr.Output), wlr_output: *wlr.Output) void {
-  const server: *Server = @fieldParentPtr("new_output", listener);
-
-  if (!wlr_output.initRender(server.allocator, server.renderer)) return;
-
-  var state = wlr.Output.State.init();
-  defer state.finish();
-
-  state.setEnabled(true);
-  if (wlr_output.preferredMode()) |mode| {
-    state.setMode(mode);
-  }
-  if (!wlr_output.commitState(&state)) return;
-
-  Output.create(server, wlr_output) catch {
-    std.log.err("failed to allocate new output", .{});
-    wlr_output.destroy();
-    return;
-  };
 }
 
 fn newInput(listener: *wl.Listener(*wlr.InputDevice), device: *wlr.InputDevice) void {

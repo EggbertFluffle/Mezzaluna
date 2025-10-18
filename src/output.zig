@@ -17,7 +17,7 @@ request_state: wl.Listener(*wlr.Output.event.RequestState) = .init(handleRequest
 destroy: wl.Listener(*wlr.Output) = .init(handleDestroy),
 
 // The wlr.Output should be destroyed by the caller on failure to trigger cleanup.
-pub fn create(server: *Server, wlr_output: *wlr.Output) !void {
+pub fn create(server: *Server, wlr_output: *wlr.Output) !*Output {
   const output = try gpa.create(Output);
 
   output.* = .{
@@ -34,6 +34,8 @@ pub fn create(server: *Server, wlr_output: *wlr.Output) !void {
 
   const scene_output = try server.scene.createSceneOutput(wlr_output);
   server.scene_output_layout.addOutput(layout_output, scene_output);
+
+  return output;
 }
 
 pub fn handleFrame(listener: *wl.Listener(*wlr.Output), _: *wlr.Output) void {
