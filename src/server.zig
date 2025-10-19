@@ -75,6 +75,8 @@ pub fn init(server: *Server) !void {
   try server.renderer.initServer(wl_server);
   try Root.init(&server.root);
 
+  _ = try wlr.Subcompositor.create(server.wl_server);
+
   server.backend.events.new_input.add(&server.new_input);
   server.seat.events.request_set_cursor.add(&server.request_set_cursor);
   server.seat.events.request_set_selection.add(&server.request_set_selection);
