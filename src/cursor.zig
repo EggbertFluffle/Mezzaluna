@@ -26,6 +26,8 @@ pub fn init(self: *Cursor) !void {
 
   try self.x_cursor_manager.load(1);
 
+  self.wlr_cursor.attachOutputLayout(server.root.output_layout);
+
   self.wlr_cursor.events.motion.add(&self.motion);
   self.wlr_cursor.events.motion_absolute.add(&self.motion_absolute);
   self.wlr_cursor.events.button.add(&self.button);
