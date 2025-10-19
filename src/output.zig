@@ -3,13 +3,13 @@ const Output = @This();
 const std = @import("std");
 const posix = std.posix;
 const gpa = std.heap.c_allocator;
+const server = &@import("main.zig").server;
 
 const wl = @import("wayland").server.wl;
 const wlr = @import("wlroots");
 
 const Server = @import("server.zig");
 
-server: *Server,
 wlr_output: *wlr.Output,
 
 frame: wl.Listener(*wlr.Output) = .init(handleFrame),
@@ -17,11 +17,10 @@ request_state: wl.Listener(*wlr.Output.event.RequestState) = .init(handleRequest
 destroy: wl.Listener(*wlr.Output) = .init(handleDestroy),
 
 // The wlr.Output should be destroyed by the caller on failure to trigger cleanup.
-pub fn create(server: *Server, wlr_output: *wlr.Output) !*Output {
+pub fn create(wlr_output: *wlr.Output) !*Output {
   const output = try gpa.create(Output);
 
   output.* = .{
-    .server = server,
     .wlr_output = wlr_output,
   };
   wlr_output.events.frame.add(&output.frame);
@@ -42,6 +41,7 @@ pub fn handleRequestState(
 listener: *wl.Listener(*wlr.Output.event.RequestState),
 event: *wlr.Output.event.RequestState,
   ) void {
+  std.log.debug("Handling request state", .{});
   const output: *Output = @fieldParentPtr("request_state", listener);
 
   if (!output.wlr_output.commitState(event.state)) {
@@ -49,13 +49,13 @@ event: *wlr.Output.event.RequestState,
   }
 }
 
-pub fn handleFrame(listener: *wl.Listener(*wlr.Output), wlr_output: *wlr.Output) void {
-  const output: *Output = @fieldParentPtr("destroy", listener);
+pub fn handleFrame(_: *wl.Listener(*wlr.Output), wlr_output: *wlr.Output) void {
+  std.log.debug("Handling frame for {s}", .{wlr_output.name});
 
-  const scene_output = output.*.server.*.scene.*.getSceneOutput(wlr_output);
+  const scene_output = server.scene.*.getSceneOutput(wlr_output);
 
   if(scene_output) |so| {
-    std.log.info("Rendering commitin scene output\n", .{});
+    std.log.info("Rendering commited scene output\n", .{});
     _ = so.commit(null);
 
     var now = posix.clock_gettime(posix.CLOCK.MONOTONIC) catch @panic("CLOCK_MONOTONIC not supported");
@@ -65,6 +65,7 @@ pub fn handleFrame(listener: *wl.Listener(*wlr.Output), wlr_output: *wlr.Output)
 }
 
 pub fn handleDestroy(listener: *wl.Listener(*wlr.Output), _: *wlr.Output) void {
+  std.log.debug("Handling destroy", .{});
   const output: *Output = @fieldParentPtr("destroy", listener);
 
   std.log.debug("removing output: {s}", .{output.*.wlr_output.*.name});

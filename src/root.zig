@@ -1,50 +1,58 @@
-const std = @import("std");
+const Root = @This();
 
+const std = @import("std");
 const wl = @import("wayland").server.wl;
 const wlr = @import("wlroots");
 
 const Output = @import("output.zig");
+const TopLevel = @import("toplevel.zig");
 
 const server = &@import("main.zig").server;
+const gpa = std.heap.c_allocator;
 
-pub const Root = struct {
-  scene: *wlr.Scene,
+scene: *wlr.Scene,
 
-  output_layout: *wlr.OutputLayout,
+output_layout: *wlr.OutputLayout,
 
-  new_output: wl.Listener(*wlr.Output),
+new_output: wl.Listener(*wlr.Output),
 
-  pub fn init(root: *Root) !void {
-    std.log.info("Creating root of mezzaluna\n", .{});
+all_top_levels: std.ArrayList(*TopLevel),
 
-    const output_layout = try wlr.OutputLayout.create(server.wl_server);
-    errdefer output_layout.destroy();
+pub fn init(root: *Root) !void {
+  std.log.info("Creating root of mezzaluna\n", .{});
 
-    const scene = try wlr.Scene.create();
-    errdefer scene.tree.node.destroy();
+  const output_layout = try wlr.OutputLayout.create(server.wl_server);
+  errdefer output_layout.destroy();
 
-    root.* = .{
-      .scene = scene,
-      .output_layout = output_layout,
+  const scene = try wlr.Scene.create();
+  errdefer scene.tree.node.destroy();
 
-      .new_output = .init(handleNewOutput),
-    };
+  root.* = .{
+    .scene = scene,
+    .output_layout = output_layout,
 
-    server.backend.events.new_output.add(&root.new_output);
-  }
+    .new_output = .init(handleNewOutput),
 
-  pub fn addOutput(self: *Root, new_output: *Output) void {
-    _ = self.output_layout.addAuto(new_output.wlr_output) catch {
-      std.log.err("failed to add new output to output layout\n", .{});
-      return;
-    };
+    .all_top_levels = try .initCapacity(gpa, 10),
+  };
 
-    // _ = self.scene.createSceneOutput(new_output.wlr_output) catch {
-    //   std.log.err("failed to create scene output for new output", .{});
-    //   return;
-    // };
-  }
-};
+  server.backend.events.new_output.add(&root.new_output);
+}
+
+pub fn addOutput(self: *Root, new_output: *Output) void {
+  _ = self.output_layout.addAuto(new_output.wlr_output) catch {
+    std.log.err("failed to add new output to output layout\n", .{});
+    return;
+  };
+}
+
+pub fn addTopLevel(self: *Root, top_level: *TopLevel) void {
+  self.all_top_levels.append(gpa, top_level) catch {
+    std.log.err("Out of memory to append top level", .{});
+  };
+
+  // self.scene.tree.children.append(wlr.SceneNode)
+}
 
 fn handleNewOutput(_: *wl.Listener(*wlr.Output), wlr_output: *wlr.Output) void {
   std.log.info("Handling a new output - {s}", .{wlr_output.name});
@@ -61,7 +69,7 @@ fn handleNewOutput(_: *wl.Listener(*wlr.Output), wlr_output: *wlr.Output) void {
   }
   if (!wlr_output.commitState(&state)) return;
 
-  const new_output = Output.create(server, wlr_output) catch {
+  const new_output = Output.create(wlr_output) catch {
     std.log.err("failed to allocate new output", .{});
     wlr_output.destroy();
     return;
@@ -69,3 +77,4 @@ fn handleNewOutput(_: *wl.Listener(*wlr.Output), wlr_output: *wlr.Output) void {
 
   server.root.addOutput(new_output);
 }
+

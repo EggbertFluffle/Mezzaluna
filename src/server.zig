@@ -8,7 +8,8 @@ const wlr = @import("wlroots");
 
 const Output = @import("output.zig");
 const Keyboard = @import("keyboard.zig");
-const Root = @import("root.zig").Root;
+const TopLevel = @import("toplevel.zig");
+const Root = @import("root.zig");
 
 allocator: *wlr.Allocator,
 backend: *wlr.Backend,
@@ -32,6 +33,9 @@ cursor_mgr: *wlr.XcursorManager,
 
 // Listeners
 new_input: wl.Listener(*wlr.InputDevice) = .init(newInput),
+
+new_xdg_surface: wl.Listener(*wlr.XdgSurface) = .init(handleNewXdgSurface),
+
 cursor_motion: wl.Listener(*wlr.Pointer.event.Motion) = .init(cursorMotion),
 cursor_motion_absolute: wl.Listener(*wlr.Pointer.event.MotionAbsolute) = .init(cursorMotionAbsolute),
 cursor_button: wl.Listener(*wlr.Pointer.event.Button) = .init(cursorButton),
@@ -75,9 +79,13 @@ pub fn init(server: *Server) !void {
   try server.renderer.initServer(wl_server);
   try Root.init(&server.root);
 
+  server.xdg_shell.events.new_surface.add(&server.new_xdg_surface);
+
   server.backend.events.new_input.add(&server.new_input);
+
   server.seat.events.request_set_cursor.add(&server.request_set_cursor);
   server.seat.events.request_set_selection.add(&server.request_set_selection);
+
   server.keyboards.init();
 
   server.cursor.attachOutputLayout(server.output_layout);
@@ -236,4 +244,17 @@ fn requestSetSelection(
 ) void {
   const server: *Server = @fieldParentPtr("request_set_selection", listener);
   server.seat.setSelection(event.source, event.serial);
+}
+
+fn handleNewXdgSurface(listener: *wl.Listener(*wlr.XdgSurface), xdg_surface: *wlr.XdgSurface) void {
+  const server: *Server = @fieldParentPtr("new_xdg_surface", listener);
+
+  std.log.info("New xdg_toplevel added", .{});
+
+  const top_level = TopLevel.init(xdg_surface) catch {
+    std.log.err("Unable to allocate a top level", .{});
+    return;
+  };
+
+  server.root.addTopLevel(top_level);
 }
