@@ -49,8 +49,10 @@ event: *wlr.Output.event.RequestState,
   }
 }
 
-pub fn handleFrame(_: *wl.Listener(*wlr.Output), wlr_output: *wlr.Output) void {
-  const scene_output = server.scene.getSceneOutput(wlr_output);
+pub fn handleFrame(listener: *wl.Listener(*wlr.Output), wlr_output: *wlr.Output) void {
+  const output: *Output = @fieldParentPtr("destroy", listener);
+
+  const scene_output = output.*.server.scene.getSceneOutput(wlr_output);
 
   if(scene_output) |so| {
     std.log.info("Rendering commitin scene output\n", .{});
