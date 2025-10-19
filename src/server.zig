@@ -76,6 +76,7 @@ pub fn init(server: *Server) !void {
   try Root.init(&server.root);
 
   _ = try wlr.Subcompositor.create(server.wl_server);
+  _ = try wlr.DataDeviceManager.create(server.wl_server);
 
   server.backend.events.new_input.add(&server.new_input);
   server.seat.events.request_set_cursor.add(&server.request_set_cursor);
