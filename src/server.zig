@@ -39,7 +39,8 @@ new_output: wl.Listener(*wlr.Output) = .init(handleNewOutput),
 // backend.events.destroy
 
 // XdgShell listeners
-new_xdg_surface: wl.Listener(*wlr.XdgSurface) = .init(handleNewXdgSurface),
+new_xdg_toplevel: wl.Listener(*wlr.XdgToplevel) = .init(handleNewXdgToplevel),
+new_xdg_popup: wl.Listener(*wlr.XdgPopup) = .init(handleNewXdgPopup),
 // new_xdg_popup
 // new_xdg_toplevel
 
@@ -85,8 +86,8 @@ pub fn init(self: *Server) !void {
   self.backend.events.new_output.add(&self.new_output);
 
   // XdgShell events
-  self.xdg_shell.events.new_surface.add(&self.new_xdg_surface);
-
+  self.xdg_shell.events.new_toplevel.add(&self.new_xdg_toplevel);
+  self.xdg_shell.events.new_popup.add(&self.new_xdg_popup);
 }
 
 pub fn deinit(self: *Server) void {
@@ -154,7 +155,6 @@ fn handleNewOutput(
   server.root.addOutput(new_output);
 }
 
-
 fn handleRequestSetSelection(
   _: *wl.Listener(*wlr.Seat.event.RequestSetSelection),
   event: *wlr.Seat.event.RequestSetSelection,
@@ -162,16 +162,21 @@ fn handleRequestSetSelection(
   server.seat.setSelection(event.source, event.serial);
 }
 
-fn handleNewXdgSurface(
-  _: *wl.Listener(*wlr.XdgSurface),
-  xdg_surface: *wlr.XdgSurface
+fn handleNewXdgToplevel(
+  _: *wl.Listener(*wlr.XdgToplevel),
+  xdg_toplevel: *wlr.XdgToplevel
 ) void {
-  std.log.info("New xdg_toplevel added", .{});
+  if(View.initFromTopLevel(xdg_toplevel)) |view| {
+    std.log.debug("Adding new view {s}", .{view.xdg_toplevel.title orelse "(null)"});
+    server.root.addView(view);
+  } else {
+    std.log.err("Unable to allocate new view", .{});
+  }
+}
 
-  const view = View.init(xdg_surface) catch {
-    std.log.err("Unable to allocate a top level", .{});
-    return;
-  };
-
-  server.root.addView(view);
+fn handleNewXdgPopup(
+  _: *wl.Listener(*wlr.XdgPopup),
+  _: *wlr.XdgPopup
+) void {
+  std.log.err("Unimplemented handle new xdg popup", .{});
 }

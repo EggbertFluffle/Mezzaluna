@@ -91,7 +91,7 @@ fn handleKeyMap(_: *wl.Listener(*wlr.Keyboard), _: *wlr.Keyboard) void {
 pub fn handleDestroy(listener: *wl.Listener(*wlr.InputDevice), _: *wlr.InputDevice) void {
   const keyboard: *Keyboard = @fieldParentPtr("destroy", listener);
 
-  std.log.debug("removing keyboard: {s}", .{keyboard.*.device.*.name orelse "(null)"});
+  std.log.debug("removing keyboard: {s}", .{keyboard.device.name orelse "(null)"});
 
   keyboard.link.remove();
 

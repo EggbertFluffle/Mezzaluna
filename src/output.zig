@@ -30,7 +30,7 @@ pub fn create(wlr_output: *wlr.Output) !*Output {
   wlr_output.events.request_state.add(&output.request_state);
   wlr_output.events.destroy.add(&output.destroy);
 
-  std.log.debug("adding output: {s}", .{output.*.wlr_output.*.name});
+  std.log.debug("adding output: {s}", .{output.wlr_output.name});
 
   // I don't think we need the result of this
   _ = try server.root.output_layout.addAuto(wlr_output);
@@ -63,18 +63,20 @@ fn handleFrame(
   _: *wl.Listener(*wlr.Output),
   wlr_output: *wlr.Output
 ) void {
-  std.log.debug("Handling frame for {s}", .{wlr_output.name});
+  // std.log.debug("Handling frame for {s}", .{wlr_output.name});
 
   const scene_output = server.root.scene.getSceneOutput(wlr_output);
 
-  if(scene_output) |so| {
-    std.log.info("Rendering commited scene output\n", .{});
-    _ = so.commit(null);
-
-    var now = posix.clock_gettime(posix.CLOCK.MONOTONIC) catch @panic("CLOCK_MONOTONIC not supported");
-    so.sendFrameDone(&now);
+  if(scene_output == null) {
+    std.log.err("Unable to get scene output to render", .{});
+    return;
   }
 
+  // std.log.info("Rendering commited scene output\n", .{});
+  _ = scene_output.?.commit(null);
+
+  var now = posix.clock_gettime(posix.CLOCK.MONOTONIC) catch @panic("CLOCK_MONOTONIC not supported");
+  scene_output.?.sendFrameDone(&now);
 }
 
 fn handleDestroy(
@@ -84,7 +86,7 @@ fn handleDestroy(
   std.log.debug("Handling destroy", .{});
   const output: *Output = @fieldParentPtr("destroy", listener);
 
-  std.log.debug("removing output: {s}", .{output.*.wlr_output.*.name});
+  std.log.debug("removing output: {s}", .{output.wlr_output.name});
 
   output.frame.link.remove();
   output.request_state.link.remove();
