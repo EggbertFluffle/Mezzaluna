@@ -3,7 +3,7 @@ const std = @import("std");
 const wl = @import("wayland").server.wl;
 const wlr = @import("wlroots");
 
-const Output = @import("output.zig").Output;
+const Output = @import("output.zig");
 
 const server = &@import("main.zig").server;
 
@@ -61,7 +61,7 @@ fn handleNewOutput(_: *wl.Listener(*wlr.Output), wlr_output: *wlr.Output) void {
   }
   if (!wlr_output.commitState(&state)) return;
 
-  const new_output = Output.create(wlr_output) catch {
+  const new_output = Output.create(server, wlr_output) catch {
     std.log.err("failed to allocate new output", .{});
     wlr_output.destroy();
     return;

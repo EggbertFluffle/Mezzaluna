@@ -1,7 +1,7 @@
 const std = @import("std");
 const wlr = @import("wlroots");
 
-const Server = @import("server.zig").Server;
+const Server = @import("server.zig");
 
 const gpa = std.heap.c_allocator;
 
@@ -9,11 +9,12 @@ const gpa = std.heap.c_allocator;
 pub var server: Server = undefined;
 
 pub fn main() !void {
-  wlr.log.init(.debug, null);
+  // wlr.log.init(.debug, null);
 
   std.log.info("Starting mezzaluna", .{});
 
   try server.init();
+  defer server.deinit();
 
   var buf: [11]u8 = undefined;
   const socket = try server.wl_server.addSocketAuto(&buf);
