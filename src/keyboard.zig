@@ -2,66 +2,74 @@ const Keyboard = @This();
 
 const std = @import("std");
 const gpa = std.heap.c_allocator;
+const server = &@import("main.zig").server;
 
 const wl = @import("wayland").server.wl;
 const wlr = @import("wlroots");
 const xkb = @import("xkbcommon");
 
-const Server = @import("server.zig");
-
-server: *Server,
-link: wl.list.Link = undefined,
+wlr_keyboard: *wlr.Keyboard,
 device: *wlr.InputDevice,
 
-modifiers: wl.Listener(*wlr.Keyboard) = .init(handleModifiers),
+keyboards: wl.list.Head(Keyboard, .link) = undefined,
+
+link: wl.list.Link = undefined,
+
+// Keyboard listeners
 key: wl.Listener(*wlr.Keyboard.event.Key) = .init(handleKey),
+key_map: wl.Listener(*wlr.Keyboard) = .init(handleKeyMap),
+modifiers: wl.Listener(*wlr.Keyboard) = .init(handleModifiers),
+
+// Device listeners
 destroy: wl.Listener(*wlr.InputDevice) = .init(handleDestroy),
 
-pub fn create(server: *Server, device: *wlr.InputDevice) !void {
-  const keyboard = try gpa.create(Keyboard);
-  errdefer gpa.destroy(keyboard);
 
-  keyboard.* = .{
-    .server = server,
+pub fn init(self: *Keyboard, device: *wlr.InputDevice) !void {
+  self.* = .{
+    .wlr_keyboard = device.toKeyboard(),
     .device = device,
   };
 
   const context = xkb.Context.new(.no_flags) orelse return error.ContextFailed;
   defer context.unref();
+
   const keymap = xkb.Keymap.newFromNames(context, null, .no_flags) orelse return error.KeymapFailed;
   defer keymap.unref();
 
-  const wlr_keyboard = device.toKeyboard();
   // TODO: configure this via lua later
-  if (!wlr_keyboard.setKeymap(keymap)) return error.SetKeymapFailed;
-  wlr_keyboard.setRepeatInfo(25, 600);
+  if (!self.wlr_keyboard.setKeymap(keymap)) return error.SetKeymapFailed;
+  self.wlr_keyboard.setRepeatInfo(25, 600);
 
-  wlr_keyboard.events.modifiers.add(&keyboard.modifiers);
-  wlr_keyboard.events.key.add(&keyboard.key);
-  device.events.destroy.add(&keyboard.destroy);
+  self.wlr_keyboard.events.modifiers.add(&self.modifiers);
+  self.wlr_keyboard.events.key.add(&self.key);
+  self.wlr_keyboard.events.keymap.add(&self.key_map);
 
-  std.log.debug("adding keyboard: {s}", .{keyboard.*.device.*.name orelse "(null)"});
+  device.events.destroy.add(&self.destroy);
 
-  server.seat.setKeyboard(wlr_keyboard);
-  server.keyboards.append(keyboard);
+  std.log.debug("adding keyboard: {s}", .{self.wlr_keyboard.base.name orelse "(null)"});
+
+  server.seat.wlr_seat.setKeyboard(self.wlr_keyboard);
+
+  self.keyboards.init();
+  self.keyboards.append(self);
 }
 
-pub fn handleModifiers(listener: *wl.Listener(*wlr.Keyboard), wlr_keyboard: *wlr.Keyboard) void {
-  const keyboard: *Keyboard = @fieldParentPtr("modifiers", listener);
-  keyboard.server.seat.setKeyboard(wlr_keyboard);
-  keyboard.server.seat.keyboardNotifyModifiers(&wlr_keyboard.modifiers);
+// pub fn destroy(self: *Keyboard) {
+//
+// }
+
+fn handleModifiers(_: *wl.Listener(*wlr.Keyboard), wlr_keyboard: *wlr.Keyboard) void {
+  server.seat.wlr_seat.setKeyboard(wlr_keyboard);
+  server.seat.wlr_seat.keyboardNotifyModifiers(&wlr_keyboard.modifiers);
 }
 
-pub fn handleKey(listener: *wl.Listener(*wlr.Keyboard.event.Key), event: *wlr.Keyboard.event.Key) void {
-  const keyboard: *Keyboard = @fieldParentPtr("key", listener);
-  const wlr_keyboard = keyboard.device.toKeyboard();
-
+fn handleKey(_: *wl.Listener(*wlr.Keyboard.event.Key), event: *wlr.Keyboard.event.Key) void {
   // Translate libinput keycode -> xkbcommon
   // const keycode = event.keycode + 8;
 
   // TODO: lua handle keybinds here
   const handled = false;
-  if (wlr_keyboard.getModifiers().alt and event.state == .pressed) {
+  if (server.keyboard.wlr_keyboard.getModifiers().alt and event.state == .pressed) {
     // for (wlr_keyboard.xkb_state.?.keyGetSyms(keycode)) |sym| {
     //   if (keyboard.server.handleKeybind(sym)) {
     //     handled = true;
@@ -71,9 +79,13 @@ pub fn handleKey(listener: *wl.Listener(*wlr.Keyboard.event.Key), event: *wlr.Ke
   }
 
   if (!handled) {
-    keyboard.server.seat.setKeyboard(wlr_keyboard);
-    keyboard.server.seat.keyboardNotifyKey(event.time_msec, event.keycode, event.state);
+    server.seat.wlr_seat.setKeyboard(server.keyboard.wlr_keyboard);
+    server.seat.wlr_seat.keyboardNotifyKey(event.time_msec, event.keycode, event.state);
   }
+}
+
+fn handleKeyMap(_: *wl.Listener(*wlr.Keyboard), _: *wlr.Keyboard) void {
+  std.log.err("Unimplemented handle keyboard keymap", .{});
 }
 
 pub fn handleDestroy(listener: *wl.Listener(*wlr.InputDevice), _: *wlr.InputDevice) void {

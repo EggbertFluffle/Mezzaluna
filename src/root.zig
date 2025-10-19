@@ -5,20 +5,19 @@ const wl = @import("wayland").server.wl;
 const wlr = @import("wlroots");
 
 const Output = @import("output.zig");
-const TopLevel = @import("toplevel.zig");
+const View = @import("view.zig");
 
 const server = &@import("main.zig").server;
 const gpa = std.heap.c_allocator;
 
 scene: *wlr.Scene,
+scene_output_layout: *wlr.SceneOutputLayout,
 
 output_layout: *wlr.OutputLayout,
 
-new_output: wl.Listener(*wlr.Output),
+all_views: std.ArrayList(*View),
 
-all_top_levels: std.ArrayList(*TopLevel),
-
-pub fn init(root: *Root) !void {
+pub fn init(self: *Root) !void {
   std.log.info("Creating root of mezzaluna\n", .{});
 
   const output_layout = try wlr.OutputLayout.create(server.wl_server);
@@ -27,16 +26,19 @@ pub fn init(root: *Root) !void {
   const scene = try wlr.Scene.create();
   errdefer scene.tree.node.destroy();
 
-  root.* = .{
+  self.* = .{
     .scene = scene,
     .output_layout = output_layout,
 
-    .new_output = .init(handleNewOutput),
+    .scene_output_layout = try scene.attachOutputLayout(output_layout),
 
-    .all_top_levels = try .initCapacity(gpa, 10),
+    .all_views = try .initCapacity(gpa, 10),
   };
+}
 
-  server.backend.events.new_output.add(&root.new_output);
+pub fn deinit(self: *Root) void {
+  self.output_layout.destroy();
+  self.scene.tree.node.destroy();
 }
 
 pub fn addOutput(self: *Root, new_output: *Output) void {
@@ -46,35 +48,44 @@ pub fn addOutput(self: *Root, new_output: *Output) void {
   };
 }
 
-pub fn addTopLevel(self: *Root, top_level: *TopLevel) void {
-  self.all_top_levels.append(gpa, top_level) catch {
-    std.log.err("Out of memory to append top level", .{});
+pub fn addView(self: *Root, view: *View) void {
+  self.all_views.append(gpa, view) catch {
+    std.log.err("Out of memory to append view", .{});
   };
 
-  // self.scene.tree.children.append(wlr.SceneNode)
+  _ = self.scene.tree.createSceneXdgSurface(view.xdg_toplevel.base) catch {
+    std.log.err("Unable to create scene node for new view", .{});
+  };
 }
 
-fn handleNewOutput(_: *wl.Listener(*wlr.Output), wlr_output: *wlr.Output) void {
-  std.log.info("Handling a new output - {s}", .{wlr_output.name});
+const ViewAtResult = struct {
+  // TODO: uncomment when we have toplevels
+  // toplevel: *Toplevel,
+  surface: *wlr.Surface,
+  sx: f64,
+  sy: f64,
+};
 
-  if (!wlr_output.initRender(server.allocator, server.renderer)) return;
+pub fn viewAt(self: *Root, lx: f64, ly: f64) ?ViewAtResult {
+  var sx: f64 = undefined;
+  var sy: f64 = undefined;
+  if (self.scene.tree.node.at(lx, ly, &sx, &sy)) |node| {
+    if (node.type != .buffer) return null;
+    // TODO: uncomment when we have toplevels
+    // const scene_buffer = wlr.SceneBuffer.fromNode(node);
+    // const scene_surface = wlr.SceneSurface.tryFromBuffer(scene_buffer) orelse return null;
 
-  var state = wlr.Output.State.init();
-  defer state.finish();
-
-  state.setEnabled(true);
-
-  if (wlr_output.preferredMode()) |mode| {
-    state.setMode(mode);
+    var it: ?*wlr.SceneTree = node.parent;
+    while (it) |n| : (it = n.node.parent) {
+      // if (@as(?*Toplevel, @ptrCast(@alignCast(n.node.data)))) |toplevel| {
+      //   return ViewAtResult{
+      //     .toplevel = toplevel,
+      //     .surface = scene_surface.surface,
+      //     .sx = sx,
+      //     .sy = sy,
+      //   };
+      // }
+    }
   }
-  if (!wlr_output.commitState(&state)) return;
-
-  const new_output = Output.create(wlr_output) catch {
-    std.log.err("failed to allocate new output", .{});
-    wlr_output.destroy();
-    return;
-  };
-
-  server.root.addOutput(new_output);
+  return null;
 }
-

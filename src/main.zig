@@ -5,7 +5,6 @@ const Server = @import("server.zig");
 
 const gpa = std.heap.c_allocator;
 
-
 pub var server: Server = undefined;
 
 pub fn main() !void {

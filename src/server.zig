@@ -1,263 +1,177 @@
 const Server = @This();
 
 const std = @import("std");
-const gpa = std.heap.c_allocator;
-
 const wl = @import("wayland").server.wl;
 const wlr = @import("wlroots");
 
-const Output = @import("output.zig");
-const Keyboard = @import("keyboard.zig");
-const TopLevel = @import("toplevel.zig");
 const Root = @import("root.zig");
+const Seat = @import("seat.zig");
+const Cursor = @import("cursor.zig");
+const Keyboard = @import("keyboard.zig");
+const Output = @import("output.zig");
+const View = @import("view.zig");
+
+const gpa = std.heap.c_allocator;
+const server = &@import("main.zig").server;
+
+wl_server: *wl.Server,
+compositor: *wlr.Compositor,
+renderer: *wlr.Renderer,
+backend: *wlr.Backend,
+event_loop: *wl.EventLoop,
+session: ?*wlr.Session,
+
+shm: *wlr.Shm,
+xdg_shell: *wlr.XdgShell,
+
+// Input
 
 allocator: *wlr.Allocator,
-backend: *wlr.Backend,
-compositor: *wlr.Compositor,
-event_loop: *wl.EventLoop,
-output_layout: *wlr.OutputLayout,
-renderer: *wlr.Renderer,
-scene: *wlr.Scene,
-scene_output_layout: *wlr.SceneOutputLayout,
-session: ?*wlr.Session,
-shm: *wlr.Shm,
-wl_server: *wl.Server,
-xdg_shell: *wlr.XdgShell,
+
 root: Root,
+seat: Seat,
+cursor: Cursor,
+keyboard: Keyboard,
 
-// Input things
-seat: *wlr.Seat,
-keyboards: wl.list.Head(Keyboard, .link) = undefined,
-cursor: *wlr.Cursor,
-cursor_mgr: *wlr.XcursorManager,
+// Backend listeners
+new_input: wl.Listener(*wlr.InputDevice) = .init(handleNewInput),
+new_output: wl.Listener(*wlr.Output) = .init(handleNewOutput),
+// backend.events.destroy
 
-// Listeners
-new_input: wl.Listener(*wlr.InputDevice) = .init(newInput),
-
+// XdgShell listeners
 new_xdg_surface: wl.Listener(*wlr.XdgSurface) = .init(handleNewXdgSurface),
+// new_xdg_popup
+// new_xdg_toplevel
 
-cursor_motion: wl.Listener(*wlr.Pointer.event.Motion) = .init(cursorMotion),
-cursor_motion_absolute: wl.Listener(*wlr.Pointer.event.MotionAbsolute) = .init(cursorMotionAbsolute),
-cursor_button: wl.Listener(*wlr.Pointer.event.Button) = .init(cursorButton),
-cursor_axis: wl.Listener(*wlr.Pointer.event.Axis) = .init(cursorAxis),
-cursor_frame: wl.Listener(*wlr.Cursor) = .init(cursorFrame),
-request_set_cursor: wl.Listener(*wlr.Seat.event.RequestSetCursor) = .init(requestSetCursor),
-request_set_selection: wl.Listener(*wlr.Seat.event.RequestSetSelection) = .init(requestSetSelection),
+// Seat listeners
 
-pub fn init(server: *Server) !void {
+pub fn init(self: *Server) !void {
   const wl_server = try wl.Server.create();
   const event_loop = wl_server.getEventLoop();
 
   var session: ?*wlr.Session = undefined;
   const backend = try wlr.Backend.autocreate(event_loop, &session);
   const renderer = try wlr.Renderer.autocreate(backend);
-  const output_layout = try wlr.OutputLayout.create(wl_server);
-  const scene = try wlr.Scene.create();
 
-  // Do we need to fail if session is NULL
-
-  server.* = .{
+  self.* = .{
     .wl_server = wl_server,
     .backend = backend,
     .renderer = renderer,
     .allocator = try wlr.Allocator.autocreate(backend, renderer),
-    .scene = scene,
-    .output_layout = output_layout,
-    .scene_output_layout = try scene.attachOutputLayout(output_layout),
     .xdg_shell = try wlr.XdgShell.create(wl_server, 2),
     .event_loop = event_loop,
     .session = session,
     .compositor = try wlr.Compositor.create(wl_server, 6, renderer),
     .shm = try wlr.Shm.createWithRenderer(wl_server, 1, renderer),
-    .seat = try wlr.Seat.create(wl_server, "default"),
-    .cursor = try wlr.Cursor.create(),
     // TODO: let the user configure a cursor theme and side lua
-    .cursor_mgr = try wlr.XcursorManager.create(null, 24),
     .root = undefined,
+    .seat = undefined,
+    .cursor = undefined,
+    .keyboard = undefined,
   };
 
-  try server.renderer.initServer(wl_server);
-  try Root.init(&server.root);
+  try self.renderer.initServer(wl_server);
 
-  server.xdg_shell.events.new_surface.add(&server.new_xdg_surface);
+  try self.root.init();
+  try self.seat.init();
+  try self.cursor.init();
 
-  _ = try wlr.Subcompositor.create(server.wl_server);
-  _ = try wlr.DataDeviceManager.create(server.wl_server);
+  _ = try wlr.Subcompositor.create(self.wl_server);
+  _ = try wlr.DataDeviceManager.create(self.wl_server);
 
-  server.backend.events.new_input.add(&server.new_input);
+  // Add event listeners to events
+  // Backedn events
+  self.backend.events.new_input.add(&self.new_input);
+  self.backend.events.new_output.add(&self.new_output);
 
-  server.seat.events.request_set_cursor.add(&server.request_set_cursor);
-  server.seat.events.request_set_selection.add(&server.request_set_selection);
+  // XdgShell events
+  self.xdg_shell.events.new_surface.add(&self.new_xdg_surface);
 
-  server.keyboards.init();
-
-  server.cursor.attachOutputLayout(server.output_layout);
-  try server.cursor_mgr.load(1);
-  server.cursor.events.motion.add(&server.cursor_motion);
-  server.cursor.events.motion_absolute.add(&server.cursor_motion_absolute);
-  server.cursor.events.button.add(&server.cursor_button);
-  server.cursor.events.axis.add(&server.cursor_axis);
-  server.cursor.events.frame.add(&server.cursor_frame);
 }
 
-pub fn deinit(server: *Server) void {
-  server.wl_server.destroyClients();
+pub fn deinit(self: *Server) void {
+  self.seat.deinit();
+  self.root.deinit();
+  self.cursor.deinit();
 
-  server.cursor.destroy();
-  server.cursor_mgr.destroy();
+  self.new_input.link.remove();
+  self.new_output.link.remove();
 
-  server.new_input.link.remove();
-  server.cursor_motion.link.remove();
-  server.cursor_motion_absolute.link.remove();
-  server.cursor_button.link.remove();
-  server.cursor_axis.link.remove();
-  server.cursor_frame.link.remove();
-  server.request_set_cursor.link.remove();
-  server.request_set_selection.link.remove();
+  self.wl_server.destroyClients();
 
-  server.backend.destroy();
-  server.seat.destroy();
-  server.wl_server.destroy();
+  self.backend.destroy();
+  self.wl_server.destroy();
 }
 
-fn newInput(listener: *wl.Listener(*wlr.InputDevice), device: *wlr.InputDevice) void {
-  const server: *Server = @fieldParentPtr("new_input", listener);
+// --------- Backend event handlers ---------
+fn handleNewInput(
+  _: *wl.Listener(*wlr.InputDevice),
+  device: *wlr.InputDevice
+) void {
   switch (device.type) {
-    .keyboard => Keyboard.create(server, device) catch |err| {
-      std.log.err("failed to create keyboard: {}", .{err});
-      return;
+    .keyboard => server.keyboard.init(device) catch {
+      std.log.err("Unable to create keyboard from device {s}", .{device.name orelse "(null)"});
     },
-    .pointer => server.cursor.attachInputDevice(device),
-    else => {},
+    .pointer => server.cursor.wlr_cursor.attachInputDevice(device),
+    else => {
+      std.log.err(
+        "New input request for input that is not a keyboard or pointer: {s}",
+        .{device.name orelse "(null)"}
+      );
+    },
   }
 
-  server.seat.setCapabilities(.{
+  server.seat.wlr_seat.setCapabilities(.{
     .pointer = true,
-    .keyboard = server.keyboards.length() > 0,
+    .keyboard = server.keyboard.keyboards.length() > 0,
   });
 }
 
-fn cursorMotion(
-  listener: *wl.Listener(*wlr.Pointer.event.Motion),
-  event: *wlr.Pointer.event.Motion,
+fn handleNewOutput(
+  _: *wl.Listener(*wlr.Output),
+  wlr_output: *wlr.Output
 ) void {
-  const server: *Server = @fieldParentPtr("cursor_motion", listener);
-  server.cursor.move(event.device, event.delta_x, event.delta_y);
-  server.processCursorMotion(event.time_msec);
-}
+  std.log.info("Handling a new output - {s}", .{wlr_output.name});
 
-fn cursorMotionAbsolute(
-  listener: *wl.Listener(*wlr.Pointer.event.MotionAbsolute),
-  event: *wlr.Pointer.event.MotionAbsolute,
-) void {
-  const server: *Server = @fieldParentPtr("cursor_motion_absolute", listener);
-  server.cursor.warpAbsolute(event.device, event.x, event.y);
-  server.processCursorMotion(event.time_msec);
-}
+  if (!wlr_output.initRender(server.allocator, server.renderer)) return;
 
-fn processCursorMotion(server: *Server, time_msec: u32) void {
-  if (server.viewAt(server.cursor.x, server.cursor.y)) |res| {
-    server.seat.pointerNotifyEnter(res.surface, res.sx, res.sy);
-    server.seat.pointerNotifyMotion(time_msec, res.sx, res.sy);
-  } else {
-    server.cursor.setXcursor(server.cursor_mgr, "default");
-    server.seat.pointerClearFocus();
+  var state = wlr.Output.State.init();
+  defer state.finish();
+
+  state.setEnabled(true);
+
+  if (wlr_output.preferredMode()) |mode| {
+    state.setMode(mode);
   }
+  if (!wlr_output.commitState(&state)) return;
+
+  const new_output = Output.create(wlr_output) catch {
+    std.log.err("failed to allocate new output", .{});
+    wlr_output.destroy();
+    return;
+  };
+
+  server.root.addOutput(new_output);
 }
 
-const ViewAtResult = struct {
-  // TODO: uncomment when we have toplevels
-  // toplevel: *Toplevel,
-  surface: *wlr.Surface,
-  sx: f64,
-  sy: f64,
-};
 
-fn viewAt(server: *Server, lx: f64, ly: f64) ?ViewAtResult {
-  var sx: f64 = undefined;
-  var sy: f64 = undefined;
-  if (server.scene.tree.node.at(lx, ly, &sx, &sy)) |node| {
-    if (node.type != .buffer) return null;
-    // TODO: uncomment when we have toplevels
-    // const scene_buffer = wlr.SceneBuffer.fromNode(node);
-    // const scene_surface = wlr.SceneSurface.tryFromBuffer(scene_buffer) orelse return null;
-
-    var it: ?*wlr.SceneTree = node.parent;
-    while (it) |n| : (it = n.node.parent) {
-      // if (@as(?*Toplevel, @ptrCast(@alignCast(n.node.data)))) |toplevel| {
-      //   return ViewAtResult{
-      //     .toplevel = toplevel,
-      //     .surface = scene_surface.surface,
-      //     .sx = sx,
-      //     .sy = sy,
-      //   };
-      // }
-    }
-  }
-  return null;
-}
-
-fn cursorButton(
-  listener: *wl.Listener(*wlr.Pointer.event.Button),
-  event: *wlr.Pointer.event.Button,
-) void {
-  const server: *Server = @fieldParentPtr("cursor_button", listener);
-  _ = server.seat.pointerNotifyButton(event.time_msec, event.button, event.state);
-  // TODO: figure out what this listener is supposed to do
-
-  // if (event.state == .released) {
-  //   server.cursor_mode = .passthrough;
-  // } else if (server.viewAt(server.cursor.x, server.cursor.y)) |res| {
-  //   server.focusView(res.toplevel, res.surface);
-  // }
-}
-
-fn cursorAxis(
-  listener: *wl.Listener(*wlr.Pointer.event.Axis),
-  event: *wlr.Pointer.event.Axis,
-) void {
-  const server: *Server = @fieldParentPtr("cursor_axis", listener);
-  server.seat.pointerNotifyAxis(
-    event.time_msec,
-    event.orientation,
-    event.delta,
-    event.delta_discrete,
-    event.source,
-    event.relative_direction,
-  );
-}
-
-fn cursorFrame(listener: *wl.Listener(*wlr.Cursor), _: *wlr.Cursor) void {
-  const server: *Server = @fieldParentPtr("cursor_frame", listener);
-  server.seat.pointerNotifyFrame();
-}
-
-fn requestSetCursor(
-  listener: *wl.Listener(*wlr.Seat.event.RequestSetCursor),
-  event: *wlr.Seat.event.RequestSetCursor,
-) void {
-  const server: *Server = @fieldParentPtr("request_set_cursor", listener);
-  if (event.seat_client == server.seat.pointer_state.focused_client)
-    server.cursor.setSurface(event.surface, event.hotspot_x, event.hotspot_y);
-}
-
-fn requestSetSelection(
-  listener: *wl.Listener(*wlr.Seat.event.RequestSetSelection),
+fn handleRequestSetSelection(
+  _: *wl.Listener(*wlr.Seat.event.RequestSetSelection),
   event: *wlr.Seat.event.RequestSetSelection,
 ) void {
-  const server: *Server = @fieldParentPtr("request_set_selection", listener);
   server.seat.setSelection(event.source, event.serial);
 }
 
-fn handleNewXdgSurface(listener: *wl.Listener(*wlr.XdgSurface), xdg_surface: *wlr.XdgSurface) void {
-  const server: *Server = @fieldParentPtr("new_xdg_surface", listener);
-
+fn handleNewXdgSurface(
+  _: *wl.Listener(*wlr.XdgSurface),
+  xdg_surface: *wlr.XdgSurface
+) void {
   std.log.info("New xdg_toplevel added", .{});
 
-  const top_level = TopLevel.init(xdg_surface) catch {
+  const view = View.init(xdg_surface) catch {
     std.log.err("Unable to allocate a top level", .{});
     return;
   };
 
-  server.root.addTopLevel(top_level);
+  server.root.addView(view);
 }

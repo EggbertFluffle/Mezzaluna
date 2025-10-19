@@ -11,6 +11,7 @@ const wlr = @import("wlroots");
 const Server = @import("server.zig");
 
 wlr_output: *wlr.Output,
+scene_output: *wlr.SceneOutput,
 
 frame: wl.Listener(*wlr.Output) = .init(handleFrame),
 request_state: wl.Listener(*wlr.Output.event.RequestState) = .init(handleRequestState),
@@ -22,25 +23,34 @@ pub fn create(wlr_output: *wlr.Output) !*Output {
 
   output.* = .{
     .wlr_output = wlr_output,
+    .scene_output = try server.root.scene.createSceneOutput(wlr_output)
   };
+
   wlr_output.events.frame.add(&output.frame);
   wlr_output.events.request_state.add(&output.request_state);
   wlr_output.events.destroy.add(&output.destroy);
 
   std.log.debug("adding output: {s}", .{output.*.wlr_output.*.name});
 
-  const layout_output = try server.output_layout.addAuto(wlr_output);
+  // I don't think we need the result of this
+  _ = try server.root.output_layout.addAuto(wlr_output);
 
-  const scene_output = try server.scene.createSceneOutput(wlr_output);
-  server.scene_output_layout.addOutput(layout_output, scene_output);
+  // I beive this has the output render the entire scene which is finefor now
 
   return output;
 }
 
-pub fn handleRequestState(
-listener: *wl.Listener(*wlr.Output.event.RequestState),
-event: *wlr.Output.event.RequestState,
-  ) void {
+// Conflicting name with destroy listener
+// Should probably add _listner as a postfix to listeners
+//
+// pub fn destroy(output: *Output) void {
+//   gpa.free(output);
+// }
+
+fn handleRequestState(
+  listener: *wl.Listener(*wlr.Output.event.RequestState),
+  event: *wlr.Output.event.RequestState,
+) void {
   std.log.debug("Handling request state", .{});
   const output: *Output = @fieldParentPtr("request_state", listener);
 
@@ -49,10 +59,13 @@ event: *wlr.Output.event.RequestState,
   }
 }
 
-pub fn handleFrame(_: *wl.Listener(*wlr.Output), wlr_output: *wlr.Output) void {
+fn handleFrame(
+  _: *wl.Listener(*wlr.Output),
+  wlr_output: *wlr.Output
+) void {
   std.log.debug("Handling frame for {s}", .{wlr_output.name});
 
-  const scene_output = server.scene.*.getSceneOutput(wlr_output);
+  const scene_output = server.root.scene.getSceneOutput(wlr_output);
 
   if(scene_output) |so| {
     std.log.info("Rendering commited scene output\n", .{});
@@ -64,7 +77,10 @@ pub fn handleFrame(_: *wl.Listener(*wlr.Output), wlr_output: *wlr.Output) void {
 
 }
 
-pub fn handleDestroy(listener: *wl.Listener(*wlr.Output), _: *wlr.Output) void {
+fn handleDestroy(
+  listener: *wl.Listener(*wlr.Output),
+  _: *wlr.Output
+) void {
   std.log.debug("Handling destroy", .{});
   const output: *Output = @fieldParentPtr("destroy", listener);
 
