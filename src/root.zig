@@ -11,7 +11,7 @@ const server = &@import("main.zig").server;
 const gpa = std.heap.c_allocator;
 
 scene: *wlr.Scene,
-scene_tree: ?*wlr.Scene,
+scene_tree: ?*wlr.SceneTree,
 scene_output_layout: *wlr.SceneOutputLayout,
 
 output_layout: *wlr.OutputLayout,
@@ -51,13 +51,15 @@ pub fn addOutput(self: *Root, new_output: *Output) void {
 }
 
 pub fn addView(self: *Root, view: *View) void {
-  self.scene_tree = self.scene.tree.createSceneXdgSurface(view.xdg_toplevel.base) catch {
-    std.log.err("Unable to create scene node for new view", .{});
-  };
-
   self.all_views.append(gpa, view) catch {
     std.log.err("Out of memory to append view", .{});
-    self.scene_tree = null;
+    return;
+  };
+
+  self.scene_tree = self.scene.tree.createSceneXdgSurface(view.xdg_toplevel.base) catch {
+    std.log.err("Unable to create scene node for new view", .{});
+
+    _ = self.all_views.pop();
     return;
   };
 
