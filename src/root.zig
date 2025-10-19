@@ -15,7 +15,7 @@ pub const Root = struct {
   new_output: wl.Listener(*wlr.Output),
 
   pub fn init(root: *Root) !void {
-    std.log.info("Creating root of mezzaluna", .{});
+    std.log.info("Creating root of mezzaluna\n", .{});
 
     const output_layout = try wlr.OutputLayout.create(server.wl_server);
     errdefer output_layout.destroy();
@@ -39,10 +39,10 @@ pub const Root = struct {
       return;
     };
 
-    _ = self.scene.createSceneOutput(new_output.wlr_output) catch {
-      std.log.err("failed to create scene output for new output", .{});
-      return;
-    };
+    // _ = self.scene.createSceneOutput(new_output.wlr_output) catch {
+    //   std.log.err("failed to create scene output for new output", .{});
+    //   return;
+    // };
   }
 };
 

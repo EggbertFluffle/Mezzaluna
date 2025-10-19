@@ -31,11 +31,16 @@ pub const Output = struct {
   }
 
   pub fn handleFrame(_: *wl.Listener(*wlr.Output), wlr_output: *wlr.Output) void {
-    const scene_output = server.scene.getSceneOutput(wlr_output).?;
-    _ = scene_output.commit(null);
+    const scene_output = server.scene.getSceneOutput(wlr_output);
 
-    var now = posix.clock_gettime(posix.CLOCK.MONOTONIC) catch @panic("CLOCK_MONOTONIC not supported");
-    scene_output.sendFrameDone(&now);
+    if(scene_output) |so| {
+      std.log.info("Rendering commitin scene output\n", .{});
+      _ = so.commit(null);
+
+      var now = posix.clock_gettime(posix.CLOCK.MONOTONIC) catch @panic("CLOCK_MONOTONIC not supported");
+      so.sendFrameDone(&now);
+    }
+
   }
 
   pub fn handleRequestState(
