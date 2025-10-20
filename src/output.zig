@@ -33,9 +33,8 @@ pub fn create(wlr_output: *wlr.Output) !*Output {
   std.log.debug("adding output: {s}", .{output.wlr_output.name});
 
   // I don't think we need the result of this
-  _ = try server.root.output_layout.addAuto(wlr_output);
-
-  // I beive this has the output render the entire scene which is finefor now
+  const layout_output = try server.root.output_layout.addAuto(wlr_output);
+  server.root.scene_output_layout.addOutput(layout_output, output.scene_output);
 
   return output;
 }

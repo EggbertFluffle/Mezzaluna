@@ -31,11 +31,12 @@ pub fn initFromTopLevel(xdg_toplevel: *wlr.XdgToplevel) ?*View {
   };
 
   // Debug what we have
-  std.log.debug("xdg_toplevel ptr: {*}", .{xdg_toplevel});
-  std.log.debug("xdg_toplevel.base ptr: {*}", .{xdg_toplevel.base});
-  std.log.debug("xdg_toplevel.base type: {}", .{@TypeOf(xdg_toplevel.base)});
+  // std.log.debug("xdg_toplevel ptr: {*}", .{xdg_toplevel});
+  // std.log.debug("xdg_toplevel.base ptr: {*}", .{xdg_toplevel.base});
+  // std.log.debug("xdg_toplevel.base type: {}", .{@TypeOf(xdg_toplevel.base)});
 
   const xdg_surface = xdg_toplevel.base;
+  std.log.debug("surface events type: {}", .{@TypeOf(xdg_surface.surface.events)});
 
   // Attach listeners
   xdg_surface.surface.events.map.add(&self.map);
@@ -112,9 +113,13 @@ fn handleDestroy(listener: *wl.Listener(void)) void {
   gpa.destroy(view);
 }
 
-fn handleCommit(listener: *wl.Listener(*wlr.Surface), surface: *wlr.Surface) void {
-  _ = listener;
-  _ = surface;
+fn handleCommit(listener: *wl.Listener(*wlr.Surface), _: *wlr.Surface) void {
+  const view: *View = @fieldParentPtr("commit", listener);
+
+  // On the first commit, send a configure to tell the client it can proceed
+  if (view.xdg_toplevel.base.initial_commit) {
+    _ = view.xdg_toplevel.setSize(0, 0); // 0,0 means "you decide the size"
+  }
 }
 
 fn handleNewPopup(listener: *wl.Listener(*wlr.XdgPopup), popup: *wlr.XdgPopup) void {
