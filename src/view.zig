@@ -8,6 +8,7 @@ const gpa = std.heap.c_allocator;
 const server = &@import("main.zig").server;
 
 xdg_toplevel: *wlr.XdgToplevel,
+scene_tree: ?*wlr.SceneTree,
 
 // XdgTopLevel Listeners
 map: wl.Listener(void) = wl.Listener(void).init(handleMap),
@@ -24,15 +25,23 @@ pub fn initFromTopLevel(xdg_toplevel: *wlr.XdgToplevel) ?*View {
     return null;
   };
 
-  self.xdg_toplevel = xdg_toplevel;
+  self.* = .{
+    .xdg_toplevel = xdg_toplevel,
+    .scene_tree = null,
+  };
 
-  self.xdg_toplevel.base.surface.events.map.add(&self.map);
-  self.xdg_toplevel.base.surface.events.unmap.add(&self.unmap);
-  self.xdg_toplevel.base.surface.events.commit.add(&self.commit);
+  // Debug what we have
+  std.log.debug("xdg_toplevel ptr: {*}", .{xdg_toplevel});
+  std.log.debug("xdg_toplevel.base ptr: {*}", .{xdg_toplevel.base});
+  std.log.debug("xdg_toplevel.base type: {}", .{@TypeOf(xdg_toplevel.base)});
 
-  self.xdg_toplevel.events.destroy.add(&self.destroy);
-  // self.xdg_toplevel.events.request_move.add(&self.request_move);
-  // self.xdg_toplevel.events.request_resize.add(&self.request_resize);
+  const xdg_surface = xdg_toplevel.base;
+
+  // Attach listeners
+  xdg_surface.surface.events.map.add(&self.map);
+  xdg_surface.surface.events.unmap.add(&self.unmap);
+  xdg_surface.surface.events.commit.add(&self.commit);
+  xdg_toplevel.events.destroy.add(&self.destroy);
 
   return self;
 }
@@ -71,7 +80,11 @@ fn handleMap(listener: *wl.Listener(void)) void {
   std.log.info("View mapped {s}", .{view.xdg_toplevel.title orelse "(unnamed)"});
 
   const xdg_surface = view.xdg_toplevel.base;
-  server.seat.wlr_seat.keyboardNotifyEnter(xdg_surface.surface, &.{}, null);
+  server.seat.wlr_seat.keyboardNotifyEnter(
+    xdg_surface.surface,
+    server.keyboard.wlr_keyboard.keycodes[0..server.keyboard.wlr_keyboard.num_keycodes],
+    &server.keyboard.wlr_keyboard.modifiers
+  );
 }
 
 fn handleUnmap(listener: *wl.Listener(void)) void {
@@ -102,7 +115,6 @@ fn handleDestroy(listener: *wl.Listener(void)) void {
 fn handleCommit(listener: *wl.Listener(*wlr.Surface), surface: *wlr.Surface) void {
   _ = listener;
   _ = surface;
-  std.log.err("Unimplemented view handle commit", .{});
 }
 
 fn handleNewPopup(listener: *wl.Listener(*wlr.XdgPopup), popup: *wlr.XdgPopup) void {
