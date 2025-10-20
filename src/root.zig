@@ -64,11 +64,10 @@ pub fn addView(self: *Root, view: *View) void {
 }
 
 const ViewAtResult = struct {
-  // TODO: uncomment when we have toplevels
-  // toplevel: *Toplevel,
-  surface: *wlr.Surface,
-  sx: f64,
-  sy: f64,
+    toplevel: *View,
+    surface: *wlr.Surface,
+    sx: f64,
+    sy: f64,
 };
 
 pub fn viewAt(self: *Root, lx: f64, ly: f64) ?ViewAtResult {
@@ -76,21 +75,44 @@ pub fn viewAt(self: *Root, lx: f64, ly: f64) ?ViewAtResult {
   var sy: f64 = undefined;
   if (self.scene.tree.node.at(lx, ly, &sx, &sy)) |node| {
     if (node.type != .buffer) return null;
-    // TODO: uncomment when we have toplevels
-    // const scene_buffer = wlr.SceneBuffer.fromNode(node);
-    // const scene_surface = wlr.SceneSurface.tryFromBuffer(scene_buffer) orelse return null;
+    const scene_buffer = wlr.SceneBuffer.fromNode(node);
+    const scene_surface = wlr.SceneSurface.tryFromBuffer(scene_buffer) orelse return null;
 
     var it: ?*wlr.SceneTree = node.parent;
     while (it) |n| : (it = n.node.parent) {
-      // if (@as(?*Toplevel, @ptrCast(@alignCast(n.node.data)))) |toplevel| {
-      //   return ViewAtResult{
-      //     .toplevel = toplevel,
-      //     .surface = scene_surface.surface,
-      //     .sx = sx,
-      //     .sy = sy,
-      //   };
-      // }
+      if (@as(?*View, @ptrCast(@alignCast(n.node.data)))) |toplevel| {
+        return ViewAtResult{
+          .toplevel = toplevel,
+          .surface = scene_surface.surface,
+          .sx = sx,
+          .sy = sy,
+        };
+      }
     }
   }
   return null;
+}
+
+pub fn focusView(_: *Root, view: *View) void {
+  if (server.seat.wlr_seat.keyboard_state.focused_surface) |previous_surface| {
+    if (previous_surface == view.xdg_toplevel.base.surface) return;
+    if (wlr.XdgSurface.tryFromWlrSurface(previous_surface)) |xdg_surface| {
+      _ = xdg_surface.role_data.toplevel.?.setActivated(false);
+    }
+  }
+
+  view.scene_tree.?.node.raiseToTop();
+  // view.link.remove();
+  _ = server.root.all_views.append(gpa, view) catch {
+    unreachable;
+  };
+
+  _ = view.xdg_toplevel.setActivated(true);
+
+  const wlr_keyboard = server.seat.wlr_seat.getKeyboard() orelse return;
+  server.seat.wlr_seat.keyboardNotifyEnter(
+    view.xdg_toplevel.base.surface,
+    wlr_keyboard.keycodes[0..wlr_keyboard.num_keycodes],
+    &wlr_keyboard.modifiers,
+  );
 }

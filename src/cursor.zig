@@ -50,9 +50,11 @@ pub fn deinit(self: *Cursor) void {
 
 pub fn processCursorMotion(self: *Cursor, time_msec: u32) void {
   if (server.root.viewAt(self.wlr_cursor.x, self.wlr_cursor.y)) |res| {
+    std.log.debug("we found a view", .{});
     server.seat.wlr_seat.pointerNotifyEnter(res.surface, res.sx, res.sy);
     server.seat.wlr_seat.pointerNotifyMotion(time_msec, res.sx, res.sy);
   } else {
+    std.log.debug("no view found", .{});
     self.wlr_cursor.setXcursor(self.x_cursor_manager, "default");
     server.seat.wlr_seat.pointerClearFocus();
   }
@@ -79,14 +81,10 @@ fn handleButton(
   _: *wl.Listener(*wlr.Pointer.event.Button),
   event: *wlr.Pointer.event.Button,
 ) void {
-  _ = server.seat.wlr_seat.pointerNotifyButton(event.time_msec, event.button, event.state);
-  // TODO: figure out what this listener is supposed to do
-
-  // if (event.state == .released) {
-  //   server.cursor_mode = .passthrough;
-  // } else if (server.viewAt(server.cursor.x, server.cursor.y)) |res| {
-  //   server.focusView(res.toplevel, res.surface);
-  // }
+  _ = server.seat.pointerNotifyButton(event.time_msec, event.button, event.state);
+  if (server.root.viewAt(server.cursor.wlr_cursor.x, server.cursor.wlr_cursor.y)) |res| {
+    server.root.focusView(res.toplevel);
+  }
 }
 
 fn handleHoldBegin(
