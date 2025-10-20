@@ -10,11 +10,15 @@ const server = &@import("main.zig").server;
 xdg_toplevel: *wlr.XdgToplevel,
 scene_tree: *wlr.SceneTree,
 
-// XdgTopLevel Listeners
+// Surface Listeners
 map: wl.Listener(void) = wl.Listener(void).init(handleMap),
 unmap: wl.Listener(void) = wl.Listener(void).init(handleUnmap),
 commit: wl.Listener(*wlr.Surface) = wl.Listener(*wlr.Surface).init(handleCommit),
+
+// XdgTopLevel Listeners
 destroy: wl.Listener(void) = wl.Listener(void).init(handleDestroy),
+request_resize: wl.Listener(*wlr.XdgToplevel.event.Resize) = wl.Listener(handleRequestResize),
+request_move: wl.Listener(*wlr.XdgToplevel.event.Move) = wl.Listener(handleRequestMove),
 
 // Not yet silly
 // new_popup: wl.Listener(*wlr.XdgPopup) = wl.Listener(*wlr.XdgPopup).init(handleNewPopup),
@@ -37,16 +41,27 @@ pub fn initFromTopLevel(xdg_toplevel: *wlr.XdgToplevel) ?*View {
   };
 
   self.scene_tree.node.data = self;
-  std.log.debug("Set scene_tree.node.data = {*} for new View", .{self});
-  std.log.debug("scene_tree address = {*}", .{self.scene_tree});
-  std.log.debug("Verifying: scene_tree.node.data = {*}", .{self.scene_tree.node.data});
-
   xdg_surface.data = self.scene_tree;
+
   // Attach listeners
   xdg_surface.surface.events.map.add(&self.map);
   xdg_surface.surface.events.unmap.add(&self.unmap);
   xdg_surface.surface.events.commit.add(&self.commit);
+
   xdg_toplevel.events.destroy.add(&self.destroy);
+  xdg_toplevel.events.request_move.add(&self.request_move);
+  xdg_toplevel.events.request_resize.add(&self.request_resize);
+
+  // xdg_toplevel.events.request_fullscreen.add(&self.request_fullscreen);
+  // xdg_toplevel.events.request_minimize.add(&self.request_minimize);
+  // xdg_toplevel.events.request_maxminize.add(&self.request_maximize);
+
+  // xdg_toplevel.events.set_title.add(&self.set_title);
+  // xdg_toplevel.events.set_app_id.add(&self.set_app_id);
+  // xdg_toplevel.events.set_parent.add(&self.set_parent);
+
+  // xdg_toplevel.events.request_show_window_menu.add(&self.request_show_window_menu);
+
   return self;
 }
 
@@ -68,6 +83,8 @@ pub fn init(xdg_surface: *wlr.XdgSurface) ?*View {
   self.xdg_toplevel.base.surface.events.commit.add(&self.commit);
 
   self.xdg_toplevel.events.destroy.add(&self.destroy);
+  self.xdg_toplevel.events.request_move.add(&self.request_move);
+  self.xdg_toplevel.events.request_resize.add(&self.request_resize);
   // self.xdg_toplevel.events.request_move.add(&self.request_move);
   // self.xdg_toplevel.events.request_resize.add(&self.request_resize);
 
@@ -129,4 +146,18 @@ fn handleNewPopup(listener: *wl.Listener(*wlr.XdgPopup), popup: *wlr.XdgPopup) v
   _ = listener;
   _ = popup;
   std.log.err("Unimplemented view handle new popup", .{});
+}
+
+fn handleRequestResize(listener: *wl.Listener(*wlr.XdgToplevel.event.Resize), resize: *wlr.XdgToplevel.event.Resize) void {
+  // const view: *View = @fieldParentPtr("request_resize", listener);
+  _ = listener;
+  _ = resize;
+  std.log.err("Unimplemented view handle resize", .{});
+}
+
+fn handleRequestMove(listener: *wl.Listener(*wlr.XdgToplevel.event.Move), move: *wlr.XdgToplevel.event.Move) void {
+  // const view: *View = @fieldParentPtr("request_move", listener);
+  _ = listener;
+  _ = move;
+  std.log.err("Unimplemented view handle move", .{});
 }
