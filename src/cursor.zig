@@ -81,7 +81,7 @@ fn handleButton(
   _: *wl.Listener(*wlr.Pointer.event.Button),
   event: *wlr.Pointer.event.Button,
 ) void {
-  _ = server.seat.pointerNotifyButton(event.time_msec, event.button, event.state);
+  _ = server.seat.wlr_seat.pointerNotifyButton(event.time_msec, event.button, event.state);
   if (server.root.viewAt(server.cursor.wlr_cursor.x, server.cursor.wlr_cursor.y)) |res| {
     server.root.focusView(res.toplevel);
   }
