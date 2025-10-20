@@ -47,24 +47,8 @@ pub fn addOutput(self: *Root, new_output: *Output) void {
   };
 }
 
-pub fn addView(self: *Root, view: *View) void {
-  // self.all_views.append(gpa, view) catch {
-  //   std.log.err("Out of memory to append view", .{});
-  //   return;
-  // };
-
-  view.scene_tree = self.scene.tree.createSceneXdgSurface(view.xdg_toplevel.base) catch {
-    std.log.err("Unable to create scene node for new view", .{});
-
-    _ = self.all_views.pop();
-    return;
-  };
-
-  std.log.debug("View added succesfully", .{});
-}
-
 const ViewAtResult = struct {
-    toplevel: *View,
+    view: *View,
     surface: *wlr.Surface,
     sx: f64,
     sy: f64,
@@ -78,15 +62,21 @@ pub fn viewAt(self: *Root, lx: f64, ly: f64) ?ViewAtResult {
     const scene_buffer = wlr.SceneBuffer.fromNode(node);
     const scene_surface = wlr.SceneSurface.tryFromBuffer(scene_buffer) orelse return null;
 
+    std.log.debug("Starting parent walk from buffer node", .{});
     var it: ?*wlr.SceneTree = node.parent;
+
     while (it) |n| : (it = n.node.parent) {
-      if (@as(?*View, @ptrCast(@alignCast(n.node.data)))) |toplevel| {
-        return ViewAtResult{
-          .toplevel = toplevel,
-          .surface = scene_surface.surface,
-          .sx = sx,
-          .sy = sy,
-        };
+      if (n.node.data) |data_ptr| {
+        if (@as(?*View, @ptrCast(@alignCast(data_ptr)))) |view| {
+          std.log.debug("View found", .{});
+
+          return ViewAtResult{
+            .view = view,
+            .surface = scene_surface.surface,
+            .sx = sx,
+            .sy = sy,
+          };
+        }
       }
     }
   }
@@ -101,7 +91,7 @@ pub fn focusView(_: *Root, view: *View) void {
     }
   }
 
-  view.scene_tree.?.node.raiseToTop();
+  view.scene_tree.node.raiseToTop();
   // view.link.remove();
   _ = server.root.all_views.append(gpa, view) catch {
     unreachable;

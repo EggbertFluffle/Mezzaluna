@@ -4,6 +4,8 @@ const std = @import("std");
 const wl = @import("wayland").server.wl;
 const wlr = @import("wlroots");
 
+const View = @import("view.zig");
+
 const server = &@import("main.zig").server;
 
 wlr_cursor: *wlr.Cursor,
@@ -17,6 +19,11 @@ frame: wl.Listener(*wlr.Cursor) = .init(handleFrame),
 hold_begin: wl.Listener(*wlr.Pointer.event.HoldBegin) = .init(handleHoldBegin),
 hold_end: wl.Listener(*wlr.Pointer.event.HoldEnd) = .init(handleHoldEnd),
 
+cursor_mode: enum { passthrough, move, resize } = .passthrough,
+grabbed_view: ?*View = null,
+grab_x: f64 = 0,
+grab_y: f64 = 0,
+grab_box: wlr.Box = undefined,
 
 pub fn init(self: *Cursor) !void {
   self.* = .{
@@ -83,7 +90,7 @@ fn handleButton(
 ) void {
   _ = server.seat.wlr_seat.pointerNotifyButton(event.time_msec, event.button, event.state);
   if (server.root.viewAt(server.cursor.wlr_cursor.x, server.cursor.wlr_cursor.y)) |res| {
-    server.root.focusView(res.toplevel);
+    server.root.focusView(res.view);
   }
 }
 

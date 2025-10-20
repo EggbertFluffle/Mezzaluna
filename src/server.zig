@@ -168,7 +168,6 @@ fn handleNewXdgToplevel(
 ) void {
   if(View.initFromTopLevel(xdg_toplevel)) |view| {
     std.log.debug("Adding new view {s}", .{view.xdg_toplevel.title orelse "(null)"});
-    server.root.addView(view);
   } else {
     std.log.err("Unable to allocate new view", .{});
   }

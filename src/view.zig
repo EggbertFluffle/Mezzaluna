@@ -8,7 +8,7 @@ const gpa = std.heap.c_allocator;
 const server = &@import("main.zig").server;
 
 xdg_toplevel: *wlr.XdgToplevel,
-scene_tree: ?*wlr.SceneTree,
+scene_tree: *wlr.SceneTree,
 
 // XdgTopLevel Listeners
 map: wl.Listener(void) = wl.Listener(void).init(handleMap),
@@ -25,25 +25,28 @@ pub fn initFromTopLevel(xdg_toplevel: *wlr.XdgToplevel) ?*View {
     return null;
   };
 
+  const xdg_surface = xdg_toplevel.base;
+
   self.* = .{
     .xdg_toplevel = xdg_toplevel,
-    .scene_tree = null,
+    .scene_tree = server.root.scene.tree.createSceneXdgSurface(xdg_surface) catch {
+      gpa.destroy(self);
+      std.log.err("failed to allocate new toplevel", .{});
+      return null;
+    },
   };
 
-  // Debug what we have
-  // std.log.debug("xdg_toplevel ptr: {*}", .{xdg_toplevel});
-  // std.log.debug("xdg_toplevel.base ptr: {*}", .{xdg_toplevel.base});
-  // std.log.debug("xdg_toplevel.base type: {}", .{@TypeOf(xdg_toplevel.base)});
+  self.scene_tree.node.data = self;
+  std.log.debug("Set scene_tree.node.data = {*} for new View", .{self});
+  std.log.debug("scene_tree address = {*}", .{self.scene_tree});
+  std.log.debug("Verifying: scene_tree.node.data = {*}", .{self.scene_tree.node.data});
 
-  const xdg_surface = xdg_toplevel.base;
-  std.log.debug("surface events type: {}", .{@TypeOf(xdg_surface.surface.events)});
-
+  xdg_surface.data = self.scene_tree;
   // Attach listeners
   xdg_surface.surface.events.map.add(&self.map);
   xdg_surface.surface.events.unmap.add(&self.unmap);
   xdg_surface.surface.events.commit.add(&self.commit);
   xdg_toplevel.events.destroy.add(&self.destroy);
-
   return self;
 }
 

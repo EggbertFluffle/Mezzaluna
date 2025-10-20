@@ -62,8 +62,6 @@ fn handleFrame(
   _: *wl.Listener(*wlr.Output),
   wlr_output: *wlr.Output
 ) void {
-  std.log.debug("Handling frame for {s}", .{wlr_output.name});
-
   const scene_output = server.root.scene.getSceneOutput(wlr_output);
 
   if(scene_output == null) {
