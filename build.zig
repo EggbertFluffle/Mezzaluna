@@ -1,10 +1,18 @@
 const std = @import("std");
+const builtin = @import("builtin");
 
 const Scanner = @import("wayland").Scanner;
 
 pub fn build(b: *std.Build) void {
   const target = b.standardTargetOptions(.{});
   const optimize = b.standardOptimizeOption(.{});
+
+  // TODO: this will probably change based on the install paths, make this a var
+  // that can be passed at comptime?
+  const runtime_path_prefix = switch (builtin.mode) {
+    .Debug => "runtime/",
+    else => "/usr/share",
+  };
 
   // If instead your goal is to create an executable, consider if users might
   // be interested in also being able to embed the core functionality of your
@@ -59,6 +67,10 @@ pub fn build(b: *std.Build) void {
   mez.linkSystemLibrary("wayland-server");
   mez.linkSystemLibrary("xkbcommon");
   mez.linkSystemLibrary("pixman-1");
+
+  const options = b.addOptions();
+  options.addOption([]const u8, "runtime_path_prefix", runtime_path_prefix);
+  mez.root_module.addOptions("config", options);
 
   b.installArtifact(mez);
 

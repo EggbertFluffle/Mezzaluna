@@ -1,25 +1,20 @@
 const std = @import("std");
 const wlr = @import("wlroots");
 
-const zlua = @import("zlua");
-const Lua = zlua.Lua;
-
 const Server = @import("server.zig");
+const Lua = @import("lua.zig");
 
 const gpa = std.heap.c_allocator;
 
 pub var server: Server = undefined;
+pub var lua: Lua = undefined;
 
 pub fn main() !void {
   wlr.log.init(.err, null);
 
-  var lua = try Lua.init(gpa);
-  defer lua.deinit();
-  lua.openLibs();
-  lua.doString("print('Hello from Lua embedded in Zig!')") catch {};
-
   std.log.info("Starting mezzaluna", .{});
 
+  try lua.init();
   try server.init();
   defer server.deinit();
 
