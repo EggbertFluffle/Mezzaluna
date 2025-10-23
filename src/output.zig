@@ -1,14 +1,13 @@
 const Output = @This();
 
+const wl = @import("wayland").server.wl;
+const wlr = @import("wlroots");
 const std = @import("std");
+const Server = @import("server.zig");
+
 const posix = std.posix;
 const gpa = std.heap.c_allocator;
 const server = &@import("main.zig").server;
-
-const wl = @import("wayland").server.wl;
-const wlr = @import("wlroots");
-
-const Server = @import("server.zig");
 
 wlr_output: *wlr.Output,
 scene_output: *wlr.SceneOutput,

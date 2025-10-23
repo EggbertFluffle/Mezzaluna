@@ -1,10 +1,10 @@
 const Seat = @This();
 
 const std = @import("std");
-const server = &@import("main.zig").server;
-
 const wlr = @import("wlroots");
 const wl = @import("wayland").server.wl;
+
+const server = &@import("main.zig").server;
 
 wlr_seat: *wlr.Seat,
 
@@ -23,10 +23,10 @@ pub fn init(self: *Seat) !void {
 }
 
 pub fn deinit(self: *Seat) void {
-  self.wlr_seat.destroy();
-
   self.request_set_cursor.link.remove();
   self.request_set_selection.link.remove();
+
+  self.wlr_seat.destroy();
 }
 
 fn handleRequestSetCursor(

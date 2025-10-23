@@ -6,6 +6,7 @@ const wlr = @import("wlroots");
 
 const Output = @import("output.zig");
 const View = @import("view.zig");
+const Utils = @import("utils.zig");
 
 const server = &@import("main.zig").server;
 const gpa = std.heap.c_allocator;
@@ -15,10 +16,13 @@ scene_output_layout: *wlr.SceneOutputLayout,
 
 output_layout: *wlr.OutputLayout,
 
-all_views: std.ArrayList(*View),
+views: std.ArrayList(View) = undefined,
+workspaces: std.ArrayList(*wlr.SceneTree) = undefined,
 
-pub fn init(self: *Root) !void {
+pub fn init(self: *Root) void {
   std.log.info("Creating root of mezzaluna\n", .{});
+
+  errdefer Utils.oomPanic();
 
   const output_layout = try wlr.OutputLayout.create(server.wl_server);
   errdefer output_layout.destroy();
@@ -30,21 +34,28 @@ pub fn init(self: *Root) !void {
     .scene = scene,
     .output_layout = output_layout,
     .scene_output_layout = try scene.attachOutputLayout(output_layout),
-
-    .all_views = try .initCapacity(gpa, 10),
   };
+
+  self.views = std.ArrayList(View).initCapacity(gpa, 10); // Should consider number better, prolly won't matter that much though
+  // Even though I would never use a changing amount of workspaces, opens more extensibility
+  self.workspaces = std.ArrayList(*wlr.SceneTree).initCapacity(gpa, 10); // TODO: change to a configured number of workspaces
+
+  // TODO: Make configurable
+  for(0..9) |_| {
+    self.workspaces.append(gpa, try self.scene.tree.createSceneTree());
+  }
 }
 
 pub fn deinit(self: *Root) void {
+  self.workspaces.deinit(gpa);
+  self.views.deinit(gpa);
+
   self.output_layout.destroy();
   self.scene.tree.node.destroy();
 }
 
 pub fn addOutput(self: *Root, new_output: *Output) void {
-  _ = self.output_layout.addAuto(new_output.wlr_output) catch {
-    std.log.err("failed to add new output to output layout\n", .{});
-    return;
-  };
+  _ = self.output_layout.addAuto(new_output.wlr_output) catch Utils.oomPanic();
 }
 
 const ViewAtResult = struct {
@@ -57,19 +68,17 @@ const ViewAtResult = struct {
 pub fn viewAt(self: *Root, lx: f64, ly: f64) ?ViewAtResult {
   var sx: f64 = undefined;
   var sy: f64 = undefined;
+
   if (self.scene.tree.node.at(lx, ly, &sx, &sy)) |node| {
     if (node.type != .buffer) return null;
     const scene_buffer = wlr.SceneBuffer.fromNode(node);
     const scene_surface = wlr.SceneSurface.tryFromBuffer(scene_buffer) orelse return null;
 
-    std.log.debug("Starting parent walk from buffer node", .{});
     var it: ?*wlr.SceneTree = node.parent;
 
     while (it) |n| : (it = n.node.parent) {
       if (n.node.data) |data_ptr| {
         if (@as(?*View, @ptrCast(@alignCast(data_ptr)))) |view| {
-          std.log.debug("View found", .{});
-
           return ViewAtResult{
             .view = view,
             .surface = scene_surface.surface,
@@ -92,10 +101,10 @@ pub fn focusView(_: *Root, view: *View) void {
   }
 
   view.scene_tree.node.raiseToTop();
-  // view.link.remove();
-  _ = server.root.all_views.append(gpa, view) catch {
-    unreachable;
-  };
+
+  // _ = server.root.all_views.append(gpa, view) catch {
+  //   unreachable;
+  // };
 
   _ = view.xdg_toplevel.setActivated(true);
 

@@ -1,47 +1,50 @@
 const View = @This();
 
+
 const std = @import("std");
 const wl = @import("wayland").server.wl;
 const wlr = @import("wlroots");
 
+const Utils = @import("utils.zig");
+
 const gpa = std.heap.c_allocator;
 const server = &@import("main.zig").server;
 
+link: wl.list.Link = undefined,
+geometry: *wlr.Box = undefined,
+
 xdg_toplevel: *wlr.XdgToplevel,
+xdg_surface: *wlr.XdgSurface,
 scene_tree: *wlr.SceneTree,
 
 // Surface Listeners
-map: wl.Listener(void) = wl.Listener(void).init(handleMap),
-unmap: wl.Listener(void) = wl.Listener(void).init(handleUnmap),
-commit: wl.Listener(*wlr.Surface) = wl.Listener(*wlr.Surface).init(handleCommit),
+map: wl.Listener(void) = .init(handleMap),
+unmap: wl.Listener(void) = .init(handleUnmap),
+commit: wl.Listener(*wlr.Surface) = .init(handleCommit),
 
 // XdgTopLevel Listeners
-destroy: wl.Listener(void) = wl.Listener(void).init(handleDestroy),
-request_resize: wl.Listener(*wlr.XdgToplevel.event.Resize) = wl.Listener(handleRequestResize),
-request_move: wl.Listener(*wlr.XdgToplevel.event.Move) = wl.Listener(handleRequestMove),
+destroy: wl.Listener(void) = .init(handleDestroy),
+request_resize: wl.Listener(*wlr.XdgToplevel.event.Resize) = .init(handleRequestResize),
+request_move: wl.Listener(*wlr.XdgToplevel.event.Move) = .init(handleRequestMove),
 
 // Not yet silly
 // new_popup: wl.Listener(*wlr.XdgPopup) = wl.Listener(*wlr.XdgPopup).init(handleNewPopup),
 
 pub fn initFromTopLevel(xdg_toplevel: *wlr.XdgToplevel) ?*View {
-  const self = gpa.create(View) catch {
-    std.log.err("Unable to allocate memory for new XdgTopLevel", .{});
-    return null;
-  };
+  errdefer Utils.oomPanic();
 
-  const xdg_surface = xdg_toplevel.base;
+  const self = gpa.create(View) catch Utils.oomPanic();
+  errdefer gpa.destroy(self);
 
   self.* = .{
     .xdg_toplevel = xdg_toplevel,
-    .scene_tree = server.root.scene.tree.createSceneXdgSurface(xdg_surface) catch {
-      gpa.destroy(self);
-      std.log.err("failed to allocate new toplevel", .{});
-      return null;
-    },
+    .xdg_surface = xdg_toplevel.base,
+    .geometry = &xdg_toplevel.base.geometry,
+    .scene_tree = try server.root.scene.tree.createSceneXdgSurface(xdg_toplevel.base)
   };
 
   self.scene_tree.node.data = self;
-  xdg_surface.data = self.scene_tree;
+  self.xdg_surface.data = self.scene_tree;
 
   // Attach listeners
   xdg_surface.surface.events.map.add(&self.map);
@@ -65,33 +68,15 @@ pub fn initFromTopLevel(xdg_toplevel: *wlr.XdgToplevel) ?*View {
   return self;
 }
 
-pub fn init(xdg_surface: *wlr.XdgSurface) ?*View {
-  const self = gpa.create(View) catch {
-    std.log.err("Unable to allocate memory for new XdgTopLevel", .{});
-    return null;
-  };
-
-  if(xdg_surface.role_data.toplevel) |xdg_toplevel| {
-    self.xdg_toplevel = xdg_toplevel;
-  } else {
-    std.log.err("Unable to get top_level from new surface", .{});
-    return null;
-  }
-
-  self.xdg_toplevel.base.surface.events.map.add(&self.map);
-  self.xdg_toplevel.base.surface.events.unmap.add(&self.unmap);
-  self.xdg_toplevel.base.surface.events.commit.add(&self.commit);
-
-  self.xdg_toplevel.events.destroy.add(&self.destroy);
-  self.xdg_toplevel.events.request_move.add(&self.request_move);
-  self.xdg_toplevel.events.request_resize.add(&self.request_resize);
-  // self.xdg_toplevel.events.request_move.add(&self.request_move);
-  // self.xdg_toplevel.events.request_resize.add(&self.request_resize);
-
-  return self;
-}
-
 pub fn deinit(self: *View) void {
+  self.map.link.remove();
+  self.unmap.link.remove();
+  self.commit.link.remove();
+
+  self.destroy.link.remove();
+  self.request_move.link.remove();
+  self.request_resize.link.remove();
+
   gpa.free(self);
 }
 
@@ -138,7 +123,7 @@ fn handleCommit(listener: *wl.Listener(*wlr.Surface), _: *wlr.Surface) void {
 
   // On the first commit, send a configure to tell the client it can proceed
   if (view.xdg_toplevel.base.initial_commit) {
-    _ = view.xdg_toplevel.setSize(0, 0); // 0,0 means "you decide the size"
+    _ = view.xdg_toplevel.setSize(640, 360); // 0,0 means "you decide the size"
   }
 }
 
@@ -148,16 +133,36 @@ fn handleNewPopup(listener: *wl.Listener(*wlr.XdgPopup), popup: *wlr.XdgPopup) v
   std.log.err("Unimplemented view handle new popup", .{});
 }
 
-fn handleRequestResize(listener: *wl.Listener(*wlr.XdgToplevel.event.Resize), resize: *wlr.XdgToplevel.event.Resize) void {
-  // const view: *View = @fieldParentPtr("request_resize", listener);
-  _ = listener;
-  _ = resize;
-  std.log.err("Unimplemented view handle resize", .{});
+fn handleRequestMove(
+  listener: *wl.Listener(*wlr.XdgToplevel.event.Move),
+  _: *wlr.XdgToplevel.event.Move
+) void {
+  const view: *View = @fieldParentPtr("request_move", listener);
+
+  server.cursor.grabbed_view = view;
+  server.cursor.mode = .move;
+  server.cursor.grab_x = server.cursor.wlr_cursor.x - @as(f64, @floatFromInt(view.geometry.x));
+  server.cursor.grab_y = server.cursor.wlr_cursor.y - @as(f64, @floatFromInt(view.geometry.y));
 }
 
-fn handleRequestMove(listener: *wl.Listener(*wlr.XdgToplevel.event.Move), move: *wlr.XdgToplevel.event.Move) void {
-  // const view: *View = @fieldParentPtr("request_move", listener);
-  _ = listener;
-  _ = move;
-  std.log.err("Unimplemented view handle move", .{});
+fn handleRequestResize(
+  listener: *wl.Listener(*wlr.XdgToplevel.event.Resize),
+  event: *wlr.XdgToplevel.event.Resize
+) void {
+  const view: *View = @fieldParentPtr("request_resize", listener);
+
+  server.cursor.grabbed_view = view;
+  server.cursor.mode = .resize;
+  server.cursor.resize_edges = event.edges;
+
+  const box = view.xdg_toplevel.base.geometry;
+
+  const border_x = view.geometry.x + box.x + if (event.edges.right) box.width else 0;
+  const border_y = view.geometry.y + box.y + if (event.edges.bottom) box.height else 0;
+  server.cursor.grab_x = server.cursor.wlr_cursor.x - @as(f64, @floatFromInt(border_x));
+  server.cursor.grab_y = server.cursor.wlr_cursor.y - @as(f64, @floatFromInt(border_y));
+
+  server.cursor.grab_box = box;
+  server.cursor.grab_box.x += view.geometry.x;
+  server.cursor.grab_box.y += view.geometry.y;
 }

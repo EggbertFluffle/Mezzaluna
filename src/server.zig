@@ -47,18 +47,32 @@ new_xdg_popup: wl.Listener(*wlr.XdgPopup) = .init(handleNewXdgPopup),
 // Seat listeners
 
 pub fn init(self: *Server) !void {
-  const wl_server = try wl.Server.create();
+  const wl_server = wl.Server.create() catch {
+    std.err.log("Server create failed, exiting with 2", .{});
+    std.process.exit(2);
+  };
+
   const event_loop = wl_server.getEventLoop();
 
   var session: ?*wlr.Session = undefined;
-  const backend = try wlr.Backend.autocreate(event_loop, &session);
-  const renderer = try wlr.Renderer.autocreate(backend);
+  const backend = wlr.Backend.autocreate(event_loop, &session) catch {
+    std.log.err("Backend create failed, exiting with 3", .{});
+    std.process.exit(3);
+  };
+
+  const renderer = wlr.Renderer.autocreate(backend) catch {
+    std.log.err("Renderer create failed, exiting with 4", .{});
+    std.process.exit(4);
+  };
 
   self.* = .{
     .wl_server = wl_server,
     .backend = backend,
     .renderer = renderer,
-    .allocator = try wlr.Allocator.autocreate(backend, renderer),
+    .allocator = wlr.Allocator.autocreate(backend, renderer) catch {
+      std.log.err("Allocator create failed, exiting with 5", .{});
+      std.process.exit(5);
+    },
     .xdg_shell = try wlr.XdgShell.create(wl_server, 2),
     .event_loop = event_loop,
     .session = session,
@@ -71,9 +85,12 @@ pub fn init(self: *Server) !void {
     .keyboard = undefined,
   };
 
-  try self.renderer.initServer(wl_server);
+  try self.renderer.initServer(wl_server) catch {
+      std.log.err("Renderer init failed, exiting with 6", .{});
+      std.process.exit(6);
+  };
 
-  try self.root.init();
+  self.root.init();
   try self.seat.init();
   try self.cursor.init();
 
@@ -91,16 +108,18 @@ pub fn init(self: *Server) !void {
 }
 
 pub fn deinit(self: *Server) void {
+  self.new_input.link.remove();
+  self.new_output.link.remove();
+  self.new_xdg_toplevel.link.remove();
+  self.new_xdg_popup.link.remove();
+
   self.seat.deinit();
   self.root.deinit();
   self.cursor.deinit();
 
-  self.new_input.link.remove();
-  self.new_output.link.remove();
+  self.backend.destroy();
 
   self.wl_server.destroyClients();
-
-  self.backend.destroy();
   self.wl_server.destroy();
 }
 
