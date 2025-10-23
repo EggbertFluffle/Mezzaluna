@@ -5,6 +5,7 @@ const config = @import("config");
 const zlua = @import("zlua");
 
 const Bridge = @import("bridge.zig");
+const Fs = @import("fs.zig");
 
 const gpa = std.heap.c_allocator;
 
@@ -50,6 +51,11 @@ pub fn init(self: *Lua) !void {
     {
       self.state.newTable();
       defer _ = self.state.setField(-2, "path");
+    }
+    {
+      const funcs = zlua.fnRegsFromType(Fs);
+      self.state.newLib(funcs);
+      self.state.setField(-2, "fs");
     }
   }
 
