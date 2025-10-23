@@ -11,12 +11,15 @@ const Utils = @import("utils.zig");
 const server = &@import("main.zig").server;
 const gpa = std.heap.c_allocator;
 
+// xdg_toplevel_decoration_manager: *wlr.XdgDecorationManagerV1,
+
 scene: *wlr.Scene,
 scene_output_layout: *wlr.SceneOutputLayout,
 
 output_layout: *wlr.OutputLayout,
+focused_output: ?*Output,
 
-views: std.ArrayList(View) = undefined,
+views: std.ArrayList(*View) = undefined,
 workspaces: std.ArrayList(*wlr.SceneTree) = undefined,
 
 pub fn init(self: *Root) void {
@@ -33,29 +36,37 @@ pub fn init(self: *Root) void {
   self.* = .{
     .scene = scene,
     .output_layout = output_layout,
+    .focused_output = null,
+    // .xdg_toplevel_decoration_manager = try wlr.XdgDecorationManagerV1.create(server.wl_server),
     .scene_output_layout = try scene.attachOutputLayout(output_layout),
   };
 
-  self.views = std.ArrayList(View).initCapacity(gpa, 10); // Should consider number better, prolly won't matter that much though
+  self.views = try std.ArrayList(*View).initCapacity(gpa, 10); // Should consider number better, prolly won't matter that much though
   // Even though I would never use a changing amount of workspaces, opens more extensibility
-  self.workspaces = std.ArrayList(*wlr.SceneTree).initCapacity(gpa, 10); // TODO: change to a configured number of workspaces
+  self.workspaces = try std.ArrayList(*wlr.SceneTree).initCapacity(gpa, 10); // TODO: change to a configured number of workspaces
 
   // TODO: Make configurable
   for(0..9) |_| {
-    self.workspaces.append(gpa, try self.scene.tree.createSceneTree());
+    try self.workspaces.append(gpa, try self.scene.tree.createSceneTree());
   }
 }
 
 pub fn deinit(self: *Root) void {
-  self.workspaces.deinit(gpa);
+  for(self.views.items) |view| {
+    view.deinit();
+  }
   self.views.deinit(gpa);
+
+  self.workspaces.deinit(gpa);
 
   self.output_layout.destroy();
   self.scene.tree.node.destroy();
 }
 
 pub fn addOutput(self: *Root, new_output: *Output) void {
-  _ = self.output_layout.addAuto(new_output.wlr_output) catch Utils.oomPanic();
+  errdefer Utils.oomPanic();
+  _ = try self.output_layout.addAuto(new_output.wlr_output);
+  self.focused_output = new_output;
 }
 
 const ViewAtResult = struct {
@@ -101,10 +112,6 @@ pub fn focusView(_: *Root, view: *View) void {
   }
 
   view.scene_tree.node.raiseToTop();
-
-  // _ = server.root.all_views.append(gpa, view) catch {
-  //   unreachable;
-  // };
 
   _ = view.xdg_toplevel.setActivated(true);
 

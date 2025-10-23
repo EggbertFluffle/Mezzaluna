@@ -4,6 +4,7 @@ const wl = @import("wayland").server.wl;
 const wlr = @import("wlroots");
 const std = @import("std");
 const Server = @import("server.zig");
+const Utils = @import("utils.zig");
 
 const posix = std.posix;
 const gpa = std.heap.c_allocator;
@@ -17,7 +18,9 @@ request_state: wl.Listener(*wlr.Output.event.RequestState) = .init(handleRequest
 destroy: wl.Listener(*wlr.Output) = .init(handleDestroy),
 
 // The wlr.Output should be destroyed by the caller on failure to trigger cleanup.
-pub fn create(wlr_output: *wlr.Output) !*Output {
+pub fn create(wlr_output: *wlr.Output) *Output {
+  errdefer Utils.oomPanic();
+
   const output = try gpa.create(Output);
 
   output.* = .{

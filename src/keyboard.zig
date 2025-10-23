@@ -24,19 +24,27 @@ modifiers: wl.Listener(*wlr.Keyboard) = .init(handleModifiers),
 destroy: wl.Listener(*wlr.InputDevice) = .init(handleDestroy),
 
 
-pub fn init(self: *Keyboard, device: *wlr.InputDevice) !void {
+pub fn init(self: *Keyboard, device: *wlr.InputDevice) void {
+  errdefer {
+    std.log.err("Unable to initialize new keyboard, exiting", .{});
+    std.process.exit(6);
+  }
+
   self.* = .{
     .wlr_keyboard = device.toKeyboard(),
     .device = device,
   };
 
+  // Should handle this error here
   const context = xkb.Context.new(.no_flags) orelse return error.ContextFailed;
   defer context.unref();
 
+  // Should handle this error here
   const keymap = xkb.Keymap.newFromNames(context, null, .no_flags) orelse return error.KeymapFailed;
   defer keymap.unref();
 
   // TODO: configure this via lua later
+  // Should handle this error here
   if (!self.wlr_keyboard.setKeymap(keymap)) return error.SetKeymapFailed;
   self.wlr_keyboard.setRepeatInfo(25, 600);
 

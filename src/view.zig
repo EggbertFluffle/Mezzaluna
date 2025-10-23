@@ -30,30 +30,34 @@ request_move: wl.Listener(*wlr.XdgToplevel.event.Move) = .init(handleRequestMove
 // Not yet silly
 // new_popup: wl.Listener(*wlr.XdgPopup) = wl.Listener(*wlr.XdgPopup).init(handleNewPopup),
 
-pub fn initFromTopLevel(xdg_toplevel: *wlr.XdgToplevel) ?*View {
+pub fn initFromTopLevel(xdg_toplevel: *wlr.XdgToplevel) *View {
   errdefer Utils.oomPanic();
 
-  const self = gpa.create(View) catch Utils.oomPanic();
+  const self = try gpa.create(View);
   errdefer gpa.destroy(self);
 
   self.* = .{
     .xdg_toplevel = xdg_toplevel,
     .xdg_surface = xdg_toplevel.base,
     .geometry = &xdg_toplevel.base.geometry,
-    .scene_tree = try server.root.scene.tree.createSceneXdgSurface(xdg_toplevel.base)
+    .scene_tree = undefined,
+
   };
+
+  // Add new Toplevel to focused output instead of some random shit
+  self.scene_tree = try server.root.workspaces.items[0].createSceneXdgSurface(xdg_toplevel.base);
 
   self.scene_tree.node.data = self;
   self.xdg_surface.data = self.scene_tree;
 
   // Attach listeners
-  xdg_surface.surface.events.map.add(&self.map);
-  xdg_surface.surface.events.unmap.add(&self.unmap);
-  xdg_surface.surface.events.commit.add(&self.commit);
+  self.xdg_surface.surface.events.map.add(&self.map);
+  self.xdg_surface.surface.events.unmap.add(&self.unmap);
+  self.xdg_surface.surface.events.commit.add(&self.commit);
 
-  xdg_toplevel.events.destroy.add(&self.destroy);
-  xdg_toplevel.events.request_move.add(&self.request_move);
-  xdg_toplevel.events.request_resize.add(&self.request_resize);
+  self.xdg_toplevel.events.destroy.add(&self.destroy);
+  self.xdg_toplevel.events.request_move.add(&self.request_move);
+  self.xdg_toplevel.events.request_resize.add(&self.request_resize);
 
   // xdg_toplevel.events.request_fullscreen.add(&self.request_fullscreen);
   // xdg_toplevel.events.request_minimize.add(&self.request_minimize);
@@ -64,6 +68,8 @@ pub fn initFromTopLevel(xdg_toplevel: *wlr.XdgToplevel) ?*View {
   // xdg_toplevel.events.set_parent.add(&self.set_parent);
 
   // xdg_toplevel.events.request_show_window_menu.add(&self.request_show_window_menu);
+
+  try server.root.views.append(gpa, self);
 
   return self;
 }
@@ -76,8 +82,6 @@ pub fn deinit(self: *View) void {
   self.destroy.link.remove();
   self.request_move.link.remove();
   self.request_resize.link.remove();
-
-  gpa.free(self);
 }
 
 // --------- XdgTopLevel event handlers ---------

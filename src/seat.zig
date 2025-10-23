@@ -4,6 +4,8 @@ const std = @import("std");
 const wlr = @import("wlroots");
 const wl = @import("wayland").server.wl;
 
+const Utils = @import("utils.zig");
+
 const server = &@import("main.zig").server;
 
 wlr_seat: *wlr.Seat,
@@ -13,7 +15,9 @@ request_set_selection: wl.Listener(*wlr.Seat.event.RequestSetSelection) = .init(
 // request_set_primary_selection
 // request_start_drage
 
-pub fn init(self: *Seat) !void {
+pub fn init(self: *Seat) void {
+  errdefer Utils.oomPanic();
+
   self.* = .{
     .wlr_seat = try wlr.Seat.create(server.wl_server, "default"),
   };

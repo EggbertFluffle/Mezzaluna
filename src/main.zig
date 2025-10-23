@@ -12,7 +12,7 @@ pub fn main() !void {
 
   std.log.info("Starting mezzaluna", .{});
 
-  try server.init();
+  server.init();
   defer server.deinit();
 
   var buf: [11]u8 = undefined;

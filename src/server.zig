@@ -10,6 +10,7 @@ const Cursor = @import("cursor.zig");
 const Keyboard = @import("keyboard.zig");
 const Output = @import("output.zig");
 const View = @import("view.zig");
+const Utils = @import("utils.zig");
 
 const gpa = std.heap.c_allocator;
 const server = &@import("main.zig").server;
@@ -23,6 +24,7 @@ session: ?*wlr.Session,
 
 shm: *wlr.Shm,
 xdg_shell: *wlr.XdgShell,
+// xdg_toplevel_decoration_manager: *wlr.XdgDecorationManagerV1,
 
 // Input
 
@@ -41,14 +43,17 @@ new_output: wl.Listener(*wlr.Output) = .init(handleNewOutput),
 // XdgShell listeners
 new_xdg_toplevel: wl.Listener(*wlr.XdgToplevel) = .init(handleNewXdgToplevel),
 new_xdg_popup: wl.Listener(*wlr.XdgPopup) = .init(handleNewXdgPopup),
+// new_xdg_toplevel_decoration: wl.Listener(*wlr.XdgToplevelDecorationV1) = .init(handleNewXdgToplevelDecoration),
 // new_xdg_popup
 // new_xdg_toplevel
 
 // Seat listeners
 
-pub fn init(self: *Server) !void {
+pub fn init(self: *Server) void {
+  errdefer Utils.oomPanic();
+
   const wl_server = wl.Server.create() catch {
-    std.err.log("Server create failed, exiting with 2", .{});
+    std.log.err("Server create failed, exiting with 2", .{});
     std.process.exit(2);
   };
 
@@ -74,6 +79,7 @@ pub fn init(self: *Server) !void {
       std.process.exit(5);
     },
     .xdg_shell = try wlr.XdgShell.create(wl_server, 2),
+    // .xdg_toplevel_decoration_manager = try wlr.XdgDecorationManagerV1.create(self.wl_server),
     .event_loop = event_loop,
     .session = session,
     .compositor = try wlr.Compositor.create(wl_server, 6, renderer),
@@ -85,14 +91,14 @@ pub fn init(self: *Server) !void {
     .keyboard = undefined,
   };
 
-  try self.renderer.initServer(wl_server) catch {
+  self.renderer.initServer(wl_server) catch {
       std.log.err("Renderer init failed, exiting with 6", .{});
       std.process.exit(6);
   };
 
   self.root.init();
-  try self.seat.init();
-  try self.cursor.init();
+  self.seat.init();
+  self.cursor.init();
 
   _ = try wlr.Subcompositor.create(self.wl_server);
   _ = try wlr.DataDeviceManager.create(self.wl_server);
@@ -105,6 +111,9 @@ pub fn init(self: *Server) !void {
   // XdgShell events
   self.xdg_shell.events.new_toplevel.add(&self.new_xdg_toplevel);
   self.xdg_shell.events.new_popup.add(&self.new_xdg_popup);
+
+  // XdgDecorationManagerV1 events
+  // self.xdg_toplevel_decoration_manager.events.new_toplevel_decoration.add(&self.new_toplevel_decoration);
 }
 
 pub fn deinit(self: *Server) void {
@@ -112,6 +121,7 @@ pub fn deinit(self: *Server) void {
   self.new_output.link.remove();
   self.new_xdg_toplevel.link.remove();
   self.new_xdg_popup.link.remove();
+  self.new_xdg_toplevel.link.remove();
 
   self.seat.deinit();
   self.root.deinit();
@@ -129,9 +139,7 @@ fn handleNewInput(
   device: *wlr.InputDevice
 ) void {
   switch (device.type) {
-    .keyboard => server.keyboard.init(device) catch {
-      std.log.err("Unable to create keyboard from device {s}", .{device.name orelse "(null)"});
-    },
+    .keyboard => server.keyboard.init(device),
     .pointer => server.cursor.wlr_cursor.attachInputDevice(device),
     else => {
       std.log.err(
@@ -165,31 +173,16 @@ fn handleNewOutput(
   }
   if (!wlr_output.commitState(&state)) return;
 
-  const new_output = Output.create(wlr_output) catch {
-    std.log.err("failed to allocate new output", .{});
-    wlr_output.destroy();
-    return;
-  };
+  const new_output = Output.create(wlr_output);
 
   server.root.addOutput(new_output);
-}
-
-fn handleRequestSetSelection(
-  _: *wl.Listener(*wlr.Seat.event.RequestSetSelection),
-  event: *wlr.Seat.event.RequestSetSelection,
-) void {
-  server.seat.setSelection(event.source, event.serial);
 }
 
 fn handleNewXdgToplevel(
   _: *wl.Listener(*wlr.XdgToplevel),
   xdg_toplevel: *wlr.XdgToplevel
 ) void {
-  if(View.initFromTopLevel(xdg_toplevel)) |view| {
-    std.log.debug("Adding new view {s}", .{view.xdg_toplevel.title orelse "(null)"});
-  } else {
-    std.log.err("Unable to allocate new view", .{});
-  }
+  _ = View.initFromTopLevel(xdg_toplevel);
 }
 
 fn handleNewXdgPopup(
@@ -198,3 +191,11 @@ fn handleNewXdgPopup(
 ) void {
   std.log.err("Unimplemented handle new xdg popup", .{});
 }
+
+// fn handleNewXdgToplevelDecoration(
+//   _: *wl.Listener(*wlr.XdgToplevelDecorationV1),
+//   decoration: *wlr.XdgToplevelDecorationV1
+// ) void {
+//   // TODO: Configured with lua perhaps
+//   decoration.current.mode = .server_side;
+// }

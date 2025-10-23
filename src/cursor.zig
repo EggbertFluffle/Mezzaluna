@@ -5,6 +5,7 @@ const wl = @import("wayland").server.wl;
 const wlr = @import("wlroots");
 
 const View = @import("view.zig");
+const Utils = @import("utils.zig");
 
 const server = &@import("main.zig").server;
 
@@ -26,7 +27,9 @@ grab_y: f64 = 0,
 grab_box: wlr.Box = undefined,
 resize_edges: wlr.Edges = .{},
 
-pub fn init(self: *Cursor) !void {
+pub fn init(self: *Cursor) void {
+  errdefer Utils.oomPanic();
+
   self.* = .{
     .wlr_cursor = try wlr.Cursor.create(),
     .x_cursor_manager = try wlr.XcursorManager.create(null, 24),
