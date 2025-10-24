@@ -20,6 +20,10 @@
             .url = "https://codeberg.org/ifreund/zig-wlroots/archive/v0.19.3.tar.gz",
             .hash = "wlroots-0.19.3-jmOlcuL_AwBHhLCwpFsXbTizE3q9BugFmGX-XIxqcPMc",
         },
+        .zlua = .{
+            .url = "git+https://github.com/natecraddock/ziglua#39f8df588d0864070deffa308ef575bf492777a0",
+            .hash = "zlua-0.1.0-hGRpC6E9BQDBGKPqzmCRsI6Xd8jH9KohccmX69-L6HyS",
+        },
     },
     .paths = .{
         "build.zig",

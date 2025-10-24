@@ -2,10 +2,12 @@ const std = @import("std");
 const wlr = @import("wlroots");
 
 const Server = @import("server.zig");
+const Lua = @import("lua/lua.zig");
 
 const gpa = std.heap.c_allocator;
 
 pub var server: Server = undefined;
+pub var lua: Lua = undefined;
 
 pub fn main() !void {
   wlr.log.init(.err, null);
@@ -14,6 +16,7 @@ pub fn main() !void {
 
   server.init();
   defer server.deinit();
+  try lua.init();
 
   var buf: [11]u8 = undefined;
   const socket = try server.wl_server.addSocketAuto(&buf);
