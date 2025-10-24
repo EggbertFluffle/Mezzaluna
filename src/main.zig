@@ -14,9 +14,9 @@ pub fn main() !void {
 
   std.log.info("Starting mezzaluna", .{});
 
-  try lua.init();
   try server.init();
   defer server.deinit();
+  try lua.init();
 
   var buf: [11]u8 = undefined;
   const socket = try server.wl_server.addSocketAuto(&buf);

@@ -80,4 +80,11 @@ mez.options = {
 	}
 }
 
+---------------- Keybinds ----------------
+mez.add_keybind("modifier", "keycode", function()
+  -- callback
+end, {
+    -- additional options
+})
+
 -- Virtual terminal switching

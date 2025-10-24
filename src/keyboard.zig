@@ -3,6 +3,7 @@ const Keyboard = @This();
 const std = @import("std");
 const gpa = std.heap.c_allocator;
 const server = &@import("main.zig").server;
+const Keymap = @import("keymap.zig");
 
 const wl = @import("wayland").server.wl;
 const wlr = @import("wlroots");
@@ -65,17 +66,17 @@ fn handleModifiers(_: *wl.Listener(*wlr.Keyboard), wlr_keyboard: *wlr.Keyboard) 
 
 fn handleKey(_: *wl.Listener(*wlr.Keyboard.event.Key), event: *wlr.Keyboard.event.Key) void {
   // Translate libinput keycode -> xkbcommon
-  // const keycode = event.keycode + 8;
+  const keycode = event.keycode + 8;
 
-  // TODO: lua handle keybinds here
-  const handled = false;
-  if (server.keyboard.wlr_keyboard.getModifiers().alt and event.state == .pressed) {
-    // for (wlr_keyboard.xkb_state.?.keyGetSyms(keycode)) |sym| {
-    //   if (keyboard.server.handleKeybind(sym)) {
-    //     handled = true;
-    //     break;
-    //   }
-    // }
+  var handled = false;
+  const modifiers = server.keyboard.wlr_keyboard.getModifiers();
+  for (server.keyboard.wlr_keyboard.xkb_state.?.keyGetSyms(keycode)) |sym| {
+    if (server.keymaps.get(Keymap.hash(modifiers, sym))) |map| {
+      if (event.state == .pressed and !map.options.on_release) {
+        map.callback();
+        handled = true;
+      }
+    }
   }
 
   if (!handled) {

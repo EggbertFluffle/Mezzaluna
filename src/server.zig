@@ -10,6 +10,7 @@ const Cursor = @import("cursor.zig");
 const Keyboard = @import("keyboard.zig");
 const Output = @import("output.zig");
 const View = @import("view.zig");
+const Keymap = @import("keymap.zig");
 
 const gpa = std.heap.c_allocator;
 const server = &@import("main.zig").server;
@@ -32,6 +33,7 @@ root: Root,
 seat: Seat,
 cursor: Cursor,
 keyboard: Keyboard,
+keymaps: std.AutoHashMap(u64, Keymap),
 
 // Backend listeners
 new_input: wl.Listener(*wlr.InputDevice) = .init(handleNewInput),
@@ -69,6 +71,7 @@ pub fn init(self: *Server) !void {
     .seat = undefined,
     .cursor = undefined,
     .keyboard = undefined,
+    .keymaps = .init(gpa),
   };
 
   try self.renderer.initServer(wl_server);
