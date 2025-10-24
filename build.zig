@@ -69,6 +69,7 @@ pub fn build(b: *std.Build) void {
   mez.linkSystemLibrary("wayland-server");
   mez.linkSystemLibrary("xkbcommon");
   mez.linkSystemLibrary("pixman-1");
+  mez.linkSystemLibrary("libevdev");
 
   const options = b.addOptions();
   options.addOption([]const u8, "runtime_path_prefix", runtime_path_prefix);

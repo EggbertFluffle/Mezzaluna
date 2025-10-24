@@ -6,11 +6,15 @@ pub const Cursor = @This();
 const std = @import("std");
 const wl = @import("wayland").server.wl;
 const wlr = @import("wlroots");
+const xkb = @import("xkbcommon");
 
 const View = @import("view.zig");
 const Utils = @import("utils.zig");
 
+const c = @import("c.zig").c;
+
 const server = &@import("main.zig").server;
+const linux = std.os.linux;
 
 wlr_cursor: *wlr.Cursor,
 x_cursor_manager: *wlr.XcursorManager,
@@ -59,11 +63,15 @@ pub fn deinit(self: *Cursor) void {
   self.frame.link.remove();
 }
 
-// pub fn moveView(self: *Cursor, view: *View) void {
-// }
+pub fn moveView(self: *Cursor, view: *View, _: *wlr.Pointer.event.Button) void {
+  self.mode = .move;
+  self.selected_view = view;
+}
 
-// pub fn resizeView(self: *Cursor, view: *View) void {
-// }
+pub fn resizeView(self: *Cursor, view: *View, _: *wlr.Pointer.event.Button) void {
+  self.mode = .resize;
+  self.selected_view = view;
+}
 
 pub fn processCursorMotion(self: *Cursor, time_msec: u32) void {
   switch (self.mode) {
@@ -77,15 +85,11 @@ pub fn processCursorMotion(self: *Cursor, time_msec: u32) void {
       }
     },
     .move => {
-      // REDOING RESIZING AND MOVING TOPLEVELS
-      // REDOING RESIZING AND MOVING TOPLEVELS
-      // REDOING RESIZING AND MOVING TOPLEVELS
-      // REDOING RESIZING AND MOVING TOPLEVELS
-      // const view = self.selected_view.?;
-      // view.scene_tree.node.setPosition(
-      //   @as(i32, @intFromFloat(self.wlr_cursor.x - self.grab_x)),
-      //   @as(i32, @intFromFloat(self.wlr_cursor.y - self.grab_y))
-      // );
+      const view = self.selected_view.?;
+      view.scene_tree.node.setPosition(
+        @as(i32, @intFromFloat(self.wlr_cursor.x)),
+        @as(i32, @intFromFloat(self.wlr_cursor.y))
+      );
     },
     .resize => {
       // Fix this resize
@@ -153,18 +157,35 @@ fn handleMotionAbsolute(
 }
 
 fn handleButton(
-  _: *wl.Listener(*wlr.Pointer.event.Button),
+  listener: *wl.Listener(*wlr.Pointer.event.Button),
   event: *wlr.Pointer.event.Button
 ) void {
+  const cursor: *Cursor = @fieldParentPtr("button", listener);
+
   _ = server.seat.wlr_seat.pointerNotifyButton(event.time_msec, event.button, event.state);
+
+  const view_at_result = server.root.viewAt(cursor.wlr_cursor.x, cursor.wlr_cursor.y);
+  if (view_at_result) |res| {
+    server.root.focusView(res.view);
+  }
+
+  std.log.debug("Button pressed {}", .{event.button});
+
   switch (event.state) {
     .pressed => {
-      if (server.root.viewAt(server.cursor.wlr_cursor.x, server.cursor.wlr_cursor.y)) |res| {
-        server.root.focusView(res.view);
+      if(server.keyboard.wlr_keyboard.getModifiers().alt) {
+        // Can be BTN_RIGHT, BTN_LEFT, or BTN_MIDDLE
+        if(view_at_result) |res| {
+          if(event.button == c.libevdev_event_code_from_name(c.EV_KEY, "BTN_LEFT")) {
+            cursor.moveView(res.view, event);
+          } else if(event.button == c.libevdev_event_code_from_name(c.EV_KEY, "BTN_RIGHT")) {
+            cursor.resizeView(res.view, event);
+          }
+        }
       }
     },
     .released => {
-      server.cursor.mode = .passthrough;
+      cursor.mode = .passthrough;
     },
     else => {
       std.log.err("Invalid/Unimplemented pointer button event type", .{});
