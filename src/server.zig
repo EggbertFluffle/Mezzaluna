@@ -24,7 +24,7 @@ session: ?*wlr.Session,
 
 shm: *wlr.Shm,
 xdg_shell: *wlr.XdgShell,
-// xdg_toplevel_decoration_manager: *wlr.XdgDecorationManagerV1,
+xdg_toplevel_decoration_manager: *wlr.XdgDecorationManagerV1,
 
 // Input
 
@@ -43,7 +43,7 @@ new_output: wl.Listener(*wlr.Output) = .init(handleNewOutput),
 // XdgShell listeners
 new_xdg_toplevel: wl.Listener(*wlr.XdgToplevel) = .init(handleNewXdgToplevel),
 new_xdg_popup: wl.Listener(*wlr.XdgPopup) = .init(handleNewXdgPopup),
-// new_xdg_toplevel_decoration: wl.Listener(*wlr.XdgToplevelDecorationV1) = .init(handleNewXdgToplevelDecoration),
+new_xdg_toplevel_decoration: wl.Listener(*wlr.XdgToplevelDecorationV1) = .init(handleNewXdgToplevelDecoration),
 // new_xdg_popup
 // new_xdg_toplevel
 
@@ -79,7 +79,7 @@ pub fn init(self: *Server) void {
       std.process.exit(5);
     },
     .xdg_shell = try wlr.XdgShell.create(wl_server, 2),
-    // .xdg_toplevel_decoration_manager = try wlr.XdgDecorationManagerV1.create(self.wl_server),
+    .xdg_toplevel_decoration_manager = try wlr.XdgDecorationManagerV1.create(self.wl_server),
     .event_loop = event_loop,
     .session = session,
     .compositor = try wlr.Compositor.create(wl_server, 6, renderer),
@@ -192,10 +192,10 @@ fn handleNewXdgPopup(
   std.log.err("Unimplemented handle new xdg popup", .{});
 }
 
-// fn handleNewXdgToplevelDecoration(
-//   _: *wl.Listener(*wlr.XdgToplevelDecorationV1),
-//   decoration: *wlr.XdgToplevelDecorationV1
-// ) void {
-//   // TODO: Configured with lua perhaps
-//   decoration.current.mode = .server_side;
-// }
+fn handleNewXdgToplevelDecoration(
+  _: *wl.Listener(*wlr.XdgToplevelDecorationV1),
+  decoration: *wlr.XdgToplevelDecorationV1
+) void {
+  // TODO: Configured with lua perhaps
+  decoration.current.mode = .server_side;
+}

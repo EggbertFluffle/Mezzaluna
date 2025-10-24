@@ -1,3 +1,6 @@
+//! Maintains state related to keyboard input devices,
+//! events such as button presses and dragging
+
 const Keyboard = @This();
 
 const std = @import("std");
@@ -9,6 +12,7 @@ const wlr = @import("wlroots");
 const xkb = @import("xkbcommon");
 
 wlr_keyboard: *wlr.Keyboard,
+context: *xkb.Context,
 device: *wlr.InputDevice,
 
 keyboards: wl.list.Head(Keyboard, .link) = undefined,
@@ -31,16 +35,13 @@ pub fn init(self: *Keyboard, device: *wlr.InputDevice) void {
   }
 
   self.* = .{
+    .context = xkb.Context.new(.no_flags) orelse return error.ContextFailed,
     .wlr_keyboard = device.toKeyboard(),
     .device = device,
   };
+  defer self.context.unref();
 
-  // Should handle this error here
-  const context = xkb.Context.new(.no_flags) orelse return error.ContextFailed;
-  defer context.unref();
-
-  // Should handle this error here
-  const keymap = xkb.Keymap.newFromNames(context, null, .no_flags) orelse return error.KeymapFailed;
+  const keymap = xkb.Keymap.newFromNames(self.context, null, .no_flags) orelse return error.KeymapFailed;
   defer keymap.unref();
 
   // TODO: configure this via lua later
@@ -62,9 +63,11 @@ pub fn init(self: *Keyboard, device: *wlr.InputDevice) void {
   self.keyboards.append(self);
 }
 
-// pub fn destroy(self: *Keyboard) {
-//
-// }
+pub fn deinit (self: *Keyboard) void {
+  self.key.link.remove();
+  self.key_map.link.remove();
+  self.modifiers.link.remove();
+}
 
 fn handleModifiers(_: *wl.Listener(*wlr.Keyboard), wlr_keyboard: *wlr.Keyboard) void {
   server.seat.wlr_seat.setKeyboard(wlr_keyboard);

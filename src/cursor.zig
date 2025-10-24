@@ -1,3 +1,6 @@
+//! Maintains state related to cursor position, rendering, and
+//! events such as button presses and dragging
+
 pub const Cursor = @This();
 
 const std = @import("std");
@@ -21,11 +24,8 @@ hold_begin: wl.Listener(*wlr.Pointer.event.HoldBegin) = .init(handleHoldBegin),
 hold_end: wl.Listener(*wlr.Pointer.event.HoldEnd) = .init(handleHoldEnd),
 
 mode: enum { passthrough, move, resize } = .passthrough,
-grabbed_view: ?*View = null,
-grab_x: f64 = 0,
-grab_y: f64 = 0,
+selected_view: ?*View = null,
 grab_box: wlr.Box = undefined,
-resize_edges: wlr.Edges = .{},
 
 pub fn init(self: *Cursor) void {
   errdefer Utils.oomPanic();
@@ -59,6 +59,12 @@ pub fn deinit(self: *Cursor) void {
   self.frame.link.remove();
 }
 
+// pub fn moveView(self: *Cursor, view: *View) void {
+// }
+
+// pub fn resizeView(self: *Cursor, view: *View) void {
+// }
+
 pub fn processCursorMotion(self: *Cursor, time_msec: u32) void {
   switch (self.mode) {
     .passthrough => {
@@ -71,50 +77,60 @@ pub fn processCursorMotion(self: *Cursor, time_msec: u32) void {
       }
     },
     .move => {
-      const view = self.grabbed_view.?;
-      // Should we modify the XdgSurface geometry directly???
-      view.geometry.x = @as(i32, @intFromFloat(self.wlr_cursor.x - self.grab_x));
-      view.geometry.y = @as(i32, @intFromFloat(self.wlr_cursor.y - self.grab_y));
-      view.scene_tree.node.setPosition(view.geometry.x, view.geometry.y);
+      // REDOING RESIZING AND MOVING TOPLEVELS
+      // REDOING RESIZING AND MOVING TOPLEVELS
+      // REDOING RESIZING AND MOVING TOPLEVELS
+      // REDOING RESIZING AND MOVING TOPLEVELS
+      // const view = self.selected_view.?;
+      // view.scene_tree.node.setPosition(
+      //   @as(i32, @intFromFloat(self.wlr_cursor.x - self.grab_x)),
+      //   @as(i32, @intFromFloat(self.wlr_cursor.y - self.grab_y))
+      // );
     },
     .resize => {
       // Fix this resize
-      const view = self.grabbed_view.?;
-      const border_x = @as(i32, @intFromFloat(self.wlr_cursor.x - self.grab_x));
-      const border_y = @as(i32, @intFromFloat(self.wlr_cursor.y - self.grab_y));
-
-      var new_left = self.grab_box.x;
-      var new_right = self.grab_box.x + self.grab_box.width;
-      var new_top = self.grab_box.y;
-      var new_bottom = self.grab_box.y + self.grab_box.height;
-
-      if (self.resize_edges.top) {
-        new_top = border_y;
-        if (new_top >= new_bottom)
-        new_top = new_bottom - 1;
-      } else if (self.resize_edges.bottom) {
-        new_bottom = border_y;
-        if (new_bottom <= new_top)
-        new_bottom = new_top + 1;
-      }
-
-      if (self.resize_edges.left) {
-        new_left = border_x;
-        if (new_left >= new_right)
-        new_left = new_right - 1;
-      } else if (self.resize_edges.right) {
-        new_right = border_x;
-        if (new_right <= new_left)
-        new_right = new_left + 1;
-      }
-
-      // view.x = new_left - view.xdg_toplevel.base.geometry.x;
-      // view.y = new_top - view.xdg_toplevel.base.geometry.y;
-      view.scene_tree.node.setPosition(view.geometry.x, view.geometry.y);
-
-      const new_width = new_right - new_left;
-      const new_height = new_bottom - new_top;
-      _ = view.xdg_toplevel.setSize(new_width, new_height);
+      //
+      // REDOING RESIZING AND MOVING TOPLEVELS
+      // REDOING RESIZING AND MOVING TOPLEVELS
+      // REDOING RESIZING AND MOVING TOPLEVELS
+      // REDOING RESIZING AND MOVING TOPLEVELS
+      //
+      // const view = self.grabbed_view.?;
+      // const border_x = @as(i32, @intFromFloat(self.wlr_cursor.x - self.grab_x));
+      // const border_y = @as(i32, @intFromFloat(self.wlr_cursor.y - self.grab_y));
+      //
+      // var new_left = self.grab_box.x;
+      // var new_right = self.grab_box.x + self.grab_box.width;
+      // var new_top = self.grab_box.y;
+      // var new_bottom = self.grab_box.y + self.grab_box.height;
+      //
+      // if (self.resize_edges.top) {
+      //   new_top = border_y;
+      //   if (new_top >= new_bottom)
+      //   new_top = new_bottom - 1;
+      // } else if (self.resize_edges.bottom) {
+      //   new_bottom = border_y;
+      //   if (new_bottom <= new_top)
+      //   new_bottom = new_top + 1;
+      // }
+      //
+      // if (self.resize_edges.left) {
+      //   new_left = border_x;
+      //   if (new_left >= new_right)
+      //   new_left = new_right - 1;
+      // } else if (self.resize_edges.right) {
+      //   new_right = border_x;
+      //   if (new_right <= new_left)
+      //   new_right = new_left + 1;
+      // }
+      //
+      // // view.x = new_left - view.xdg_toplevel.base.geometry.x;
+      // // view.y = new_top - view.xdg_toplevel.base.geometry.y;
+      // view.scene_tree.node.setPosition(view.geometry.x, view.geometry.y);
+      //
+      // const new_width = new_right - new_left;
+      // const new_height = new_bottom - new_top;
+      // _ = view.xdg_toplevel.setSize(new_width, new_height);
     },
   }
 }
@@ -138,21 +154,20 @@ fn handleMotionAbsolute(
 
 fn handleButton(
   _: *wl.Listener(*wlr.Pointer.event.Button),
-  event: *wlr.Pointer.event.Button,
+  event: *wlr.Pointer.event.Button
 ) void {
+  _ = server.seat.wlr_seat.pointerNotifyButton(event.time_msec, event.button, event.state);
   switch (event.state) {
     .pressed => {
-      _ = server.seat.wlr_seat.pointerNotifyButton(event.time_msec, event.button, event.state);
       if (server.root.viewAt(server.cursor.wlr_cursor.x, server.cursor.wlr_cursor.y)) |res| {
         server.root.focusView(res.view);
       }
     },
     .released => {
-      std.log.debug("Button released", .{});
       server.cursor.mode = .passthrough;
     },
     else => {
-      std.log.err("Unexpected button state", .{});
+      std.log.err("Invalid/Unimplemented pointer button event type", .{});
     }
   }
 }
@@ -163,7 +178,7 @@ fn handleHoldBegin(
 ) void {
   _ = listener;
   _ = event;
-  std.log.err("Unimplemented cursor being hold", .{});
+  std.log.err("Unimplemented cursor start hold", .{});
 }
 
 fn handleHoldEnd(

@@ -1,6 +1,5 @@
 const View = @This();
 
-
 const std = @import("std");
 const wl = @import("wayland").server.wl;
 const wlr = @import("wlroots");
@@ -45,6 +44,8 @@ pub fn initFromTopLevel(xdg_toplevel: *wlr.XdgToplevel) *View {
   };
 
   // Add new Toplevel to focused output instead of some random shit
+  // This is where we find out where to tile the widow, but not NOW
+  // We need lua for that
   self.scene_tree = try server.root.workspaces.items[0].createSceneXdgSurface(xdg_toplevel.base);
 
   self.scene_tree.node.data = self;
@@ -138,35 +139,40 @@ fn handleNewPopup(listener: *wl.Listener(*wlr.XdgPopup), popup: *wlr.XdgPopup) v
 }
 
 fn handleRequestMove(
-  listener: *wl.Listener(*wlr.XdgToplevel.event.Move),
+  _: *wl.Listener(*wlr.XdgToplevel.event.Move),
   _: *wlr.XdgToplevel.event.Move
 ) void {
-  const view: *View = @fieldParentPtr("request_move", listener);
+  // const view: *View = @fieldParentPtr("request_move", listener);
 
-  server.cursor.grabbed_view = view;
-  server.cursor.mode = .move;
-  server.cursor.grab_x = server.cursor.wlr_cursor.x - @as(f64, @floatFromInt(view.geometry.x));
-  server.cursor.grab_y = server.cursor.wlr_cursor.y - @as(f64, @floatFromInt(view.geometry.y));
+  std.log.err("The clients should not be request moves", .{});
+
+  // server.cursor.moveView(view);
+  // server.cursor.grabbed_view = view;
+  // server.cursor.mode = .move;
+  // server.cursor.grab_x = server.cursor.wlr_cursor.x - @as(f64, @floatFromInt(view.geometry.x));
+  // server.cursor.grab_y = server.cursor.wlr_cursor.y - @as(f64, @floatFromInt(view.geometry.y));
 }
 
 fn handleRequestResize(
-  listener: *wl.Listener(*wlr.XdgToplevel.event.Resize),
-  event: *wlr.XdgToplevel.event.Resize
+  _: *wl.Listener(*wlr.XdgToplevel.event.Resize),
+  _: *wlr.XdgToplevel.event.Resize
 ) void {
-  const view: *View = @fieldParentPtr("request_resize", listener);
+  // const view: *View = @fieldParentPtr("request_resize", listener);
 
-  server.cursor.grabbed_view = view;
-  server.cursor.mode = .resize;
-  server.cursor.resize_edges = event.edges;
+  std.log.err("The clients should not be request moves", .{});
 
-  const box = view.xdg_toplevel.base.geometry;
-
-  const border_x = view.geometry.x + box.x + if (event.edges.right) box.width else 0;
-  const border_y = view.geometry.y + box.y + if (event.edges.bottom) box.height else 0;
-  server.cursor.grab_x = server.cursor.wlr_cursor.x - @as(f64, @floatFromInt(border_x));
-  server.cursor.grab_y = server.cursor.wlr_cursor.y - @as(f64, @floatFromInt(border_y));
-
-  server.cursor.grab_box = box;
-  server.cursor.grab_box.x += view.geometry.x;
-  server.cursor.grab_box.y += view.geometry.y;
+  // server.cursor.grabbed_view = view;
+  // server.cursor.mode = .resize;
+  // server.cursor.resize_edges = event.edges;
+  //
+  // const box = view.xdg_toplevel.base.geometry;
+  //
+  // const border_x = view.geometry.x + box.x + if (event.edges.right) box.width else 0;
+  // const border_y = view.geometry.y + box.y + if (event.edges.bottom) box.height else 0;
+  // server.cursor.grab_x = server.cursor.wlr_cursor.x - @as(f64, @floatFromInt(border_x));
+  // server.cursor.grab_y = server.cursor.wlr_cursor.y - @as(f64, @floatFromInt(border_y));
+  //
+  // server.cursor.grab_box = box;
+  // server.cursor.grab_box.x += view.geometry.x;
+  // server.cursor.grab_box.y += view.geometry.y;
 }

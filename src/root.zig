@@ -11,7 +11,7 @@ const Utils = @import("utils.zig");
 const server = &@import("main.zig").server;
 const gpa = std.heap.c_allocator;
 
-// xdg_toplevel_decoration_manager: *wlr.XdgDecorationManagerV1,
+xdg_toplevel_decoration_manager: *wlr.XdgDecorationManagerV1,
 
 scene: *wlr.Scene,
 scene_output_layout: *wlr.SceneOutputLayout,
@@ -37,7 +37,7 @@ pub fn init(self: *Root) void {
     .scene = scene,
     .output_layout = output_layout,
     .focused_output = null,
-    // .xdg_toplevel_decoration_manager = try wlr.XdgDecorationManagerV1.create(server.wl_server),
+    .xdg_toplevel_decoration_manager = try wlr.XdgDecorationManagerV1.create(server.wl_server),
     .scene_output_layout = try scene.attachOutputLayout(output_layout),
   };
 
