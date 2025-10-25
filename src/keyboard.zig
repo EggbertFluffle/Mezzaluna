@@ -83,8 +83,11 @@ fn handleKey(_: *wl.Listener(*wlr.Keyboard.event.Key), event: *wlr.Keyboard.even
   const modifiers = server.keyboard.wlr_keyboard.getModifiers();
   for (server.keyboard.wlr_keyboard.xkb_state.?.keyGetSyms(keycode)) |sym| {
     if (server.keymaps.get(Keymap.hash(modifiers, sym))) |map| {
-      if (event.state == .pressed and !map.options.on_release) {
-        map.callback();
+      if (event.state == .pressed and map.lua_press_ref_idx > 0) {
+        map.callback(false);
+        handled = true;
+      } else if (event.state == .released and map.lua_release_ref_idx > 0) {
+        map.callback(true);
         handled = true;
       }
     }
