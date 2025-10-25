@@ -17,10 +17,8 @@ scene: *wlr.Scene,
 scene_output_layout: *wlr.SceneOutputLayout,
 
 output_layout: *wlr.OutputLayout,
-focused_output: ?*Output,
 
-views: std.ArrayList(*View) = undefined,
-workspaces: std.ArrayList(*wlr.SceneTree) = undefined,
+views: std.HashMap(u64, *View, std.hash_map.AutoContext(u64), 80),
 
 pub fn init(self: *Root) void {
   std.log.info("Creating root of mezzaluna\n", .{});
@@ -36,28 +34,21 @@ pub fn init(self: *Root) void {
   self.* = .{
     .scene = scene,
     .output_layout = output_layout,
-    .focused_output = null,
     .xdg_toplevel_decoration_manager = try wlr.XdgDecorationManagerV1.create(server.wl_server),
     .scene_output_layout = try scene.attachOutputLayout(output_layout),
+    .views = .init(gpa)
   };
 
-  self.views = try std.ArrayList(*View).initCapacity(gpa, 10); // Should consider number better, prolly won't matter that much though
-  // Even though I would never use a changing amount of workspaces, opens more extensibility
-  self.workspaces = try std.ArrayList(*wlr.SceneTree).initCapacity(gpa, 10); // TODO: change to a configured number of workspaces
 
-  // TODO: Make configurable
-  for(0..9) |_| {
-    try self.workspaces.append(gpa, try self.scene.tree.createSceneTree());
-  }
 }
 
 pub fn deinit(self: *Root) void {
-  for(self.views.items) |view| {
-    view.deinit();
+  var views_it = self.views.iterator();
+  while(views_it.next()) |entry| {
+    entry.value_ptr.*.deinit();
   }
-  self.views.deinit(gpa);
 
-  self.workspaces.deinit(gpa);
+  self.views.deinit();
 
   self.output_layout.destroy();
   self.scene.tree.node.destroy();
@@ -66,7 +57,7 @@ pub fn deinit(self: *Root) void {
 pub fn addOutput(self: *Root, new_output: *Output) void {
   errdefer Utils.oomPanic();
   _ = try self.output_layout.addAuto(new_output.wlr_output);
-  self.focused_output = new_output;
+  server.seat.focusOutput(new_output);
 }
 
 const ViewAtResult = struct {

@@ -30,7 +30,6 @@ hold_end: wl.Listener(*wlr.Pointer.event.HoldEnd) = .init(handleHoldEnd),
 mode: enum { passthrough, move, resize } = .passthrough,
 
 // Drag information
-selected_view: ?*View = null,
 drag_start_x: c_int = 0,
 drag_start_y: c_int = 0,
 drag_view_offset_x: c_int = 0,
@@ -74,6 +73,8 @@ pub fn processCursorMotion(self: *Cursor, time_msec: u32) void {
   switch (self.mode) {
     .passthrough => {
       if (server.root.viewAt(self.wlr_cursor.x, self.wlr_cursor.y)) |res| {
+        server.seat.focusView(res.view);
+
         server.seat.wlr_seat.pointerNotifyEnter(res.surface, res.sx, res.sy);
         server.seat.wlr_seat.pointerNotifyMotion(time_msec, res.sx, res.sy);
       } else {
@@ -82,23 +83,25 @@ pub fn processCursorMotion(self: *Cursor, time_msec: u32) void {
       }
     },
     .move => {
-      const view = self.selected_view.?;
+      const focused_view = server.seat.focused_view;
 
-      view.scene_tree.node.setPosition(
-        std.math.clamp(@as(c_int, @intFromFloat(self.wlr_cursor.x)) - self.drag_view_offset_x, 0, std.math.maxInt(u32)),
-        std.math.clamp(@as(c_int, @intFromFloat(self.wlr_cursor.y)) - self.drag_view_offset_y, 0, std.math.maxInt(u32))
-      );
+      if(focused_view) |view| {
+        view.scene_tree.node.setPosition(
+          std.math.clamp(@as(c_int, @intFromFloat(self.wlr_cursor.x)) - self.drag_view_offset_x, 0, std.math.maxInt(u32)),
+          std.math.clamp(@as(c_int, @intFromFloat(self.wlr_cursor.y)) - self.drag_view_offset_y, 0, std.math.maxInt(u32))
+        );
+      }
     },
     .resize => {
       // Fix this resize
-      const view = self.selected_view.?;
+      const focused_view = server.seat.focused_view;
 
-
-
-      _ = view.xdg_toplevel.setSize(
-        @intCast(@as(c_int, @intFromFloat(self.wlr_cursor.x)) - view.scene_tree.node.x),
-        @intCast(@as(c_int, @intFromFloat(self.wlr_cursor.y)) - view.scene_tree.node.y)
-      );
+      if(focused_view) |view| {
+        _ = view.xdg_toplevel.setSize(
+          @intCast(@as(c_int, @intFromFloat(self.wlr_cursor.x)) - view.scene_tree.node.x),
+          @intCast(@as(c_int, @intFromFloat(self.wlr_cursor.y)) - view.scene_tree.node.y)
+        );
+      }
     },
   }
 }
@@ -128,33 +131,30 @@ fn handleButton(
 
   _ = server.seat.wlr_seat.pointerNotifyButton(event.time_msec, event.button, event.state);
 
-  const view_at_result = server.root.viewAt(cursor.wlr_cursor.x, cursor.wlr_cursor.y);
-  if (view_at_result) |res| {
-    server.root.focusView(res.view);
+  if (server.seat.focused_view) |view| {
+    server.seat.focusView(view);
+    server.root.focusView(view);
   }
-
-  std.log.debug("Button pressed {}", .{event.button});
 
   switch (event.state) {
     .pressed => {
       if(server.keyboard.wlr_keyboard.getModifiers().alt) {
         // Can be BTN_RIGHT, BTN_LEFT, or BTN_MIDDLE
-        if(view_at_result) |res| {
+        if(server.seat.focused_view) |view| {
           // Keep track of where the drag started
-          cursor.selected_view = res.view;
           cursor.drag_start_x = @as(c_int, @intFromFloat(cursor.wlr_cursor.x));
           cursor.drag_start_y = @as(c_int, @intFromFloat(cursor.wlr_cursor.y));
-          cursor.drag_view_offset_x = cursor.drag_start_x - res.view.scene_tree.node.x;
-          cursor.drag_view_offset_y = cursor.drag_start_y - res.view.scene_tree.node.y;
-          cursor.drag_view_width = res.view.xdg_surface.geometry.width;
-          cursor.drag_view_height = res.view.xdg_surface.geometry.height;
+          cursor.drag_view_offset_x = cursor.drag_start_x - view.scene_tree.node.x;
+          cursor.drag_view_offset_y = cursor.drag_start_y - view.scene_tree.node.y;
+          cursor.drag_view_width = view.xdg_toplevel.base.geometry.width;
+          cursor.drag_view_height = view.xdg_toplevel.base.geometry.height;
 
           // Maybe comptime this for later reference
           if(event.button == c.libevdev_event_code_from_name(c.EV_KEY, "BTN_LEFT")) {
             cursor.mode = .move;
           } else if(event.button == c.libevdev_event_code_from_name(c.EV_KEY, "BTN_RIGHT")) {
             cursor.mode = .resize;
-            _ = res.view.xdg_toplevel.setResizing(true);
+            _ = view.xdg_toplevel.setResizing(true);
           }
         }
       }
@@ -162,10 +162,9 @@ fn handleButton(
     .released => {
       cursor.mode = .passthrough;
 
-      if(cursor.selected_view) |view| {
+      if(server.seat.focused_view) |view| {
         _ = view.xdg_toplevel.setResizing(false);
       }
-      cursor.selected_view = null;
     },
     else => {
       std.log.err("Invalid/Unimplemented pointer button event type", .{});

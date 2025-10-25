@@ -116,15 +116,15 @@ pub fn init(self: *Server) void {
   self.xdg_shell.events.new_popup.add(&self.new_xdg_popup);
 
   // XdgDecorationManagerV1 events
-  // self.xdg_toplevel_decoration_manager.events.new_toplevel_decoration.add(&self.new_toplevel_decoration);
+  self.xdg_toplevel_decoration_manager.events.new_toplevel_decoration.add(&self.new_xdg_toplevel_decoration);
 }
 
-pub fn deinit(self: *Server) void {
+pub fn deinit(self: *Server) noreturn {
   self.new_input.link.remove();
   self.new_output.link.remove();
   self.new_xdg_toplevel.link.remove();
   self.new_xdg_popup.link.remove();
-  self.new_xdg_toplevel.link.remove();
+  self.new_xdg_toplevel_decoration.link.remove();
 
   self.seat.deinit();
   self.root.deinit();
@@ -134,6 +134,9 @@ pub fn deinit(self: *Server) void {
 
   self.wl_server.destroyClients();
   self.wl_server.destroy();
+
+  std.log.debug("Exiting mez succesfully", .{});
+  std.process.exit(0);
 }
 
 // --------- Backend event handlers ---------
@@ -185,7 +188,18 @@ fn handleNewXdgToplevel(
   _: *wl.Listener(*wlr.XdgToplevel),
   xdg_toplevel: *wlr.XdgToplevel
 ) void {
+  std.log.debug("Request for new toplevel", .{});
   _ = View.initFromTopLevel(xdg_toplevel);
+}
+
+fn handleNewXdgToplevelDecoration(
+  _: *wl.Listener(*wlr.XdgToplevelDecorationV1),
+  decoration: *wlr.XdgToplevelDecorationV1
+) void {
+  std.log.debug("Request for decorations", .{});
+  if(server.root.views.get(@intFromPtr(decoration.toplevel))) |view| {
+    view.xdg_toplevel_decoration = decoration;
+  }
 }
 
 fn handleNewXdgPopup(
@@ -193,12 +207,4 @@ fn handleNewXdgPopup(
   _: *wlr.XdgPopup
 ) void {
   std.log.err("Unimplemented handle new xdg popup", .{});
-}
-
-fn handleNewXdgToplevelDecoration(
-  _: *wl.Listener(*wlr.XdgToplevelDecorationV1),
-  decoration: *wlr.XdgToplevelDecorationV1
-) void {
-  // TODO: Configured with lua perhaps
-  decoration.current.mode = .server_side;
 }

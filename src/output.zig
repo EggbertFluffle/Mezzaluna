@@ -10,6 +10,8 @@ const posix = std.posix;
 const gpa = std.heap.c_allocator;
 const server = &@import("main.zig").server;
 
+focused: bool,
+
 wlr_output: *wlr.Output,
 scene_output: *wlr.SceneOutput,
 
@@ -24,6 +26,7 @@ pub fn create(wlr_output: *wlr.Output) *Output {
   const output = try gpa.create(Output);
 
   output.* = .{
+    .focused = false,
     .wlr_output = wlr_output,
     .scene_output = try server.root.scene.createSceneOutput(wlr_output)
   };

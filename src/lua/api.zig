@@ -4,6 +4,7 @@ const zlua = @import("zlua");
 const gpa = std.heap.c_allocator;
 
 const env_map = &@import("../main.zig").env_map;
+const server = &@import("../main.zig").server;
 
 pub fn spawn(L: *zlua.Lua) i32 {
   const nargs: i32 = L.getTop();
@@ -25,6 +26,34 @@ pub fn spawn(L: *zlua.Lua) i32 {
   child.spawn() catch {
     std.log.err("Unable to spawn process \"{s}\"", .{cmd});
   };
+
+  return 0;
+}
+
+pub fn close(L: *zlua.Lua) i32 {
+  const nargs: i32 = L.getTop();
+
+  if (nargs != 0) {
+    L.raiseErrorStr("Expected no arguments", .{});
+    return 0;
+  }
+
+  if(server.seat.focused_view) |view| {
+    view.xdg_toplevel.sendClose();
+  }
+
+  return 0;
+}
+
+pub fn exit(L: *zlua.Lua) i32 {
+  const nargs: i32 = L.getTop();
+
+  if (nargs != 0) {
+    L.raiseErrorStr("Expected no arguments", .{});
+    return 0;
+  }
+
+  server.deinit();
 
   return 0;
 }

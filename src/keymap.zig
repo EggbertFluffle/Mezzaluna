@@ -21,10 +21,8 @@ options: struct {
 },
 
 pub fn callback(self: *const Keymap, release: bool) void {
-  var lua_ref_idx = self.lua_press_ref_idx;
-  if (release) {
-    lua_ref_idx = self.lua_release_ref_idx;
-  }
+  const lua_ref_idx = if(release) self.lua_release_ref_idx else self.lua_press_ref_idx;
+
   const t = Lua.state.rawGetIndex(zlua.registry_index, lua_ref_idx);
   if (t != zlua.LuaType.function) {
     std.log.err("Failed to call keybind, it doesn't have a callback.", .{});

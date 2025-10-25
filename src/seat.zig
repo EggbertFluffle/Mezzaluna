@@ -5,10 +5,14 @@ const wlr = @import("wlroots");
 const wl = @import("wayland").server.wl;
 
 const Utils = @import("utils.zig");
+const View = @import("view.zig");
+const Output = @import("output.zig");
 
 const server = &@import("main.zig").server;
 
 wlr_seat: *wlr.Seat,
+focused_view: ?*View,
+focused_output: ?*Output,
 
 request_set_cursor: wl.Listener(*wlr.Seat.event.RequestSetCursor) = .init(handleRequestSetCursor),
 request_set_selection: wl.Listener(*wlr.Seat.event.RequestSetSelection) = .init(handleRequestSetSelection),
@@ -20,6 +24,8 @@ pub fn init(self: *Seat) void {
 
   self.* = .{
     .wlr_seat = try wlr.Seat.create(server.wl_server, "default"),
+    .focused_view = null,
+    .focused_output = null,
   };
 
   self.wlr_seat.events.request_set_cursor.add(&self.request_set_cursor);
@@ -31,6 +37,23 @@ pub fn deinit(self: *Seat) void {
   self.request_set_selection.link.remove();
 
   self.wlr_seat.destroy();
+}
+
+pub fn focusOutput(self: *Seat, output: *Output) void {
+  if(self.focused_output) |prev_output| {
+    prev_output.focused = false;
+  }
+
+  self.focused_output = output;
+}
+
+// TODO: Should focusing a view, automaticall focus the output containing it
+pub fn focusView(self: *Seat, view: *View) void {
+  if(self.focused_view) |prev_view| {
+    prev_view.setFocus(false);
+  }
+
+  self.focused_view = view;
 }
 
 fn handleRequestSetCursor(

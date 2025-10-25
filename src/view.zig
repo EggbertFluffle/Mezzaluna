@@ -9,25 +9,40 @@ const Utils = @import("utils.zig");
 const gpa = std.heap.c_allocator;
 const server = &@import("main.zig").server;
 
-link: wl.list.Link = undefined,
-geometry: *wlr.Box = undefined,
+mapped: bool,
+focused: bool,
+id: u64,
 
+// workspace: Workspace,
 xdg_toplevel: *wlr.XdgToplevel,
-xdg_surface: *wlr.XdgSurface,
+xdg_toplevel_decoration: ?*wlr.XdgToplevelDecorationV1,
 scene_tree: *wlr.SceneTree,
 
 // Surface Listeners
 map: wl.Listener(void) = .init(handleMap),
 unmap: wl.Listener(void) = .init(handleUnmap),
 commit: wl.Listener(*wlr.Surface) = .init(handleCommit),
+new_popup: wl.Listener(*wlr.XdgPopup) = .init(handleNewPopup),
+
+ack_configure: wl.Listener(*wlr.XdgSurface.Configure) = .init(handleAckConfigure),
 
 // XdgTopLevel Listeners
 destroy: wl.Listener(void) = .init(handleDestroy),
+
 request_resize: wl.Listener(*wlr.XdgToplevel.event.Resize) = .init(handleRequestResize),
 request_move: wl.Listener(*wlr.XdgToplevel.event.Move) = .init(handleRequestMove),
+request_fullscreen: wl.Listener(void) = .init(handleRequestFullscreen),
 
-// Not yet silly
-// new_popup: wl.Listener(*wlr.XdgPopup) = wl.Listener(*wlr.XdgPopup).init(handleNewPopup),
+// Do we need to add these
+// request_show_window_menu: wl.Listener(comptime T: type) = .init(handleRequestShowWindowMenu),
+// request_minimize: wl.Listener(comptime T: type) = .init(handleRequestMinimize),
+// request_maximize: wl.Listener(comptime T: type) = .init(handleRequestMaximize),
+
+set_app_id: wl.Listener(void) = .init(handleSetAppId),
+set_title: wl.Listener(void) = .init(handleSetTitle),
+
+// Do we need to add this
+// set_parent: wl.Listener(void) = .init(handleSetParent),
 
 pub fn initFromTopLevel(xdg_toplevel: *wlr.XdgToplevel) *View {
   errdefer Utils.oomPanic();
@@ -37,40 +52,30 @@ pub fn initFromTopLevel(xdg_toplevel: *wlr.XdgToplevel) *View {
 
   self.* = .{
     .xdg_toplevel = xdg_toplevel,
-    .xdg_surface = xdg_toplevel.base,
-    .geometry = &xdg_toplevel.base.geometry,
+    .focused = false,
     .scene_tree = undefined,
-
+    .xdg_toplevel_decoration = null,
+    .mapped = false,
+    .id = @intFromPtr(xdg_toplevel),
   };
+
+  self.xdg_toplevel.base.surface.events.unmap.add(&self.unmap);
 
   // Add new Toplevel to focused output instead of some random shit
   // This is where we find out where to tile the widow, but not NOW
   // We need lua for that
-  self.scene_tree = try server.root.workspaces.items[0].createSceneXdgSurface(xdg_toplevel.base);
+  // self.scene_tree = try server.root.workspaces.items[0].createSceneXdgSurface(xdg_toplevel.base);
+  self.scene_tree = try server.root.scene.tree.createSceneXdgSurface(xdg_toplevel.base);
 
   self.scene_tree.node.data = self;
-  self.xdg_surface.data = self.scene_tree;
-
-  // Attach listeners
-  self.xdg_surface.surface.events.map.add(&self.map);
-  self.xdg_surface.surface.events.unmap.add(&self.unmap);
-  self.xdg_surface.surface.events.commit.add(&self.commit);
+  self.xdg_toplevel.base.data = self.scene_tree;
 
   self.xdg_toplevel.events.destroy.add(&self.destroy);
-  self.xdg_toplevel.events.request_move.add(&self.request_move);
-  self.xdg_toplevel.events.request_resize.add(&self.request_resize);
+  self.xdg_toplevel.base.surface.events.map.add(&self.map);
+  self.xdg_toplevel.base.surface.events.commit.add(&self.commit);
+  self.xdg_toplevel.base.events.new_popup.add(&self.new_popup);
 
-  // xdg_toplevel.events.request_fullscreen.add(&self.request_fullscreen);
-  // xdg_toplevel.events.request_minimize.add(&self.request_minimize);
-  // xdg_toplevel.events.request_maxminize.add(&self.request_maximize);
-
-  // xdg_toplevel.events.set_title.add(&self.set_title);
-  // xdg_toplevel.events.set_app_id.add(&self.set_app_id);
-  // xdg_toplevel.events.set_parent.add(&self.set_parent);
-
-  // xdg_toplevel.events.request_show_window_menu.add(&self.request_show_window_menu);
-
-  try server.root.views.append(gpa, self);
+  try server.root.views.put(self.id, self);
 
   return self;
 }
@@ -85,10 +90,22 @@ pub fn deinit(self: *View) void {
   self.request_resize.link.remove();
 }
 
+// Handle borders to appropriate colros make necessary notifications
+pub fn setFocus(self: *View, focus: bool) void {
+  self.focused = focus;
+}
+
 // --------- XdgTopLevel event handlers ---------
 fn handleMap(listener: *wl.Listener(void)) void {
   const view: *View = @fieldParentPtr("map", listener);
-  std.log.info("View mapped {s}", .{view.xdg_toplevel.title orelse "(unnamed)"});
+  std.log.debug("Mapping view '{s}'", .{view.xdg_toplevel.title orelse "(unnamed)"});
+
+  view.xdg_toplevel.events.request_fullscreen.add(&view.request_fullscreen);
+  view.xdg_toplevel.events.request_move.add(&view.request_move);
+  view.xdg_toplevel.events.request_resize.add(&view.request_resize);
+  view.xdg_toplevel.events.set_app_id.add(&view.set_app_id);
+  view.xdg_toplevel.events.set_title.add(&view.set_title);
+  // view.xdg_toplevel.events.set_parent.add(&view.set_parent);
 
   const xdg_surface = view.xdg_toplevel.base;
   server.seat.wlr_seat.keyboardNotifyEnter(
@@ -96,29 +113,49 @@ fn handleMap(listener: *wl.Listener(void)) void {
     server.keyboard.wlr_keyboard.keycodes[0..server.keyboard.wlr_keyboard.num_keycodes],
     &server.keyboard.wlr_keyboard.modifiers
   );
+
+  if(view.xdg_toplevel_decoration) |decoration| {
+    _ = decoration.setMode(wlr.XdgToplevelDecorationV1.Mode.server_side);
+  }
+
+  // Here is where we should tile and set size
+
+  view.mapped = true;
 }
 
 fn handleUnmap(listener: *wl.Listener(void)) void {
-  _ = listener;
-  std.log.err("Unimplemented view handle unamp", .{});
+  const view: *View = @fieldParentPtr("unmap", listener);
+  std.log.debug("Unmapping view '{s}'", .{view.xdg_toplevel.title orelse "(unnamed)"});
+
+  view.request_fullscreen.link.remove();
+  view.request_move.link.remove();
+  view.request_resize.link.remove();
+  view.set_title.link.remove();
+  view.set_app_id.link.remove();
+
+  // Why does this crash mez???
+  // view.ack_configure.link.remove();
+
+  view.mapped = false;
 }
 
 fn handleDestroy(listener: *wl.Listener(void)) void {
   const view: *View = @fieldParentPtr("destroy", listener);
-  std.log.debug("Destroying view {s}", .{view.xdg_toplevel.title orelse "(unnamed)"});
+
+  // Remove decorations
 
   view.map.link.remove();
   view.unmap.link.remove();
   view.commit.link.remove();
   view.destroy.link.remove();
+  view.new_popup.link.remove();
 
-  // Remove this view from the list of views
-  // for(server.root.all_views.items, 0..) |v, i| {
-  //   if(v == view) {
-  //     _ = server.root.all_views.orderedRemove(i);
-  //     break;
-  //   }
-  // }
+  view.xdg_toplevel.base.surface.data = null;
+
+  view.scene_tree.node.destroy();
+  // Destroy popups
+
+  _ = server.root.views.remove(view.id);
 
   gpa.destroy(view);
 }
@@ -132,6 +169,7 @@ fn handleCommit(listener: *wl.Listener(*wlr.Surface), _: *wlr.Surface) void {
   }
 }
 
+// --------- XdgToplevel Event Handlers ---------
 fn handleNewPopup(listener: *wl.Listener(*wlr.XdgPopup), popup: *wlr.XdgPopup) void {
   _ = listener;
   _ = popup;
@@ -144,7 +182,7 @@ fn handleRequestMove(
 ) void {
   // const view: *View = @fieldParentPtr("request_move", listener);
 
-  std.log.err("The clients should not be request moves", .{});
+  std.log.debug("The clients should not be request moves", .{});
 
   // server.cursor.moveView(view);
   // server.cursor.grabbed_view = view;
@@ -159,7 +197,7 @@ fn handleRequestResize(
 ) void {
   // const view: *View = @fieldParentPtr("request_resize", listener);
 
-  std.log.err("The clients should not be request moves", .{});
+  std.log.debug("The clients should not be request moves", .{});
 
   // server.cursor.grabbed_view = view;
   // server.cursor.mode = .resize;
@@ -175,4 +213,53 @@ fn handleRequestResize(
   // server.cursor.grab_box = box;
   // server.cursor.grab_box.x += view.geometry.x;
   // server.cursor.grab_box.y += view.geometry.y;
+}
+
+fn handleAckConfigure(
+  listener: *wl.Listener(*wlr.XdgSurface.Configure),
+  _: *wlr.XdgSurface.Configure,
+) void {
+  const view: *View = @fieldParentPtr("ack_configure", listener);
+  _ = view;
+  std.log.err("Unimplemented act configure", .{});
+}
+
+fn handleRequestFullscreen(
+  listener: *wl.Listener(void)
+) void {
+  const view: *View = @fieldParentPtr("request_fullscreen", listener);
+  _ = view;
+  std.log.err("Unimplemented request fullscreen", .{});
+}
+
+fn handleRequestMinimize(
+  listener: *wl.Listener(void)
+) void {
+  const view: *View = @fieldParentPtr("request_fullscreen", listener);
+  _ = view;
+  std.log.err("Unimplemented request minimize", .{});
+}
+
+fn handleRequestMaximize(
+  listener: *wl.Listener(void)
+) void {
+  const view: *View = @fieldParentPtr("request_fullscreen", listener);
+  _ = view;
+  std.log.err("Unimplemented request maximize", .{});
+}
+
+fn handleSetAppId(
+  listener: *wl.Listener(void)
+) void {
+  const view: *View = @fieldParentPtr("set_app_id", listener);
+  _ = view;
+  std.log.err("Unimplemented request maximize", .{});
+}
+
+fn handleSetTitle(
+  listener: *wl.Listener(void)
+) void {
+  const view: *View = @fieldParentPtr("set_title", listener);
+  _ = view;
+  std.log.err("Unimplemented set title", .{});
 }
