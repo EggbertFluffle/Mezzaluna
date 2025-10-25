@@ -35,8 +35,6 @@ drag_start_x: c_int = 0,
 drag_start_y: c_int = 0,
 drag_view_offset_x: c_int = 0,
 drag_view_offset_y: c_int = 0,
-drag_view_width: c_int = 0,
-drag_view_height: c_int = 0,
 
 pub fn init(self: *Cursor) void {
   errdefer Utils.oomPanic();
@@ -70,6 +68,13 @@ pub fn deinit(self: *Cursor) void {
   self.frame.link.remove();
 }
 
+fn updateDrag(self: *Cursor) void {
+  self.drag_box.width = @as(c_int, @intFromFloat(self.wlr_cursor.x)) - self.drag_box.x;
+  self.drag_box.height = @as(c_int, @intFromFloat(self.wlr_cursor.y)) - self.drag_box.y;
+
+  std.log.debug("{d}, {d}, {d}, {d}", .{self.drag_box.x, self.drag_box.y, self.drag_box.width, self.drag_box.height});
+}
+
 pub fn processCursorMotion(self: *Cursor, time_msec: u32) void {
   switch (self.mode) {
     .passthrough => {
@@ -83,22 +88,61 @@ pub fn processCursorMotion(self: *Cursor, time_msec: u32) void {
     },
     .move => {
       const view = self.selected_view.?;
+      self.updateDrag();
+
+      // const half_width = @divFloor(view.xdg_surface.geometry.width, 2);
+      // const half_height = @divFloor(view.xdg_surface.geometry.width, 2);
 
       view.scene_tree.node.setPosition(
-        std.math.clamp(@as(c_int, @intFromFloat(self.wlr_cursor.x)) - self.drag_view_offset_x, 0, std.math.maxInt(u32)),
-        std.math.clamp(@as(c_int, @intFromFloat(self.wlr_cursor.y)) - self.drag_view_offset_y, 0, std.math.maxInt(u32))
+        self.drag_box.x + @divFloor(self.drag_box.width, 2),
+        self.drag_box.y + @divFloor(self.drag_box.height, 2)
       );
     },
     .resize => {
+      self.updateDrag();
       // Fix this resize
-      const view = self.selected_view.?;
-
-
-
-      _ = view.xdg_toplevel.setSize(
-        @intCast(@as(c_int, @intFromFloat(self.wlr_cursor.x)) - view.scene_tree.node.x),
-        @intCast(@as(c_int, @intFromFloat(self.wlr_cursor.y)) - view.scene_tree.node.y)
-      );
+      //
+      // REDOING RESIZING AND MOVING TOPLEVELS
+      // REDOING RESIZING AND MOVING TOPLEVELS
+      // REDOING RESIZING AND MOVING TOPLEVELS
+      // REDOING RESIZING AND MOVING TOPLEVELS
+      //
+      // const view = self.grabbed_view.?;
+      // const border_x = @as(i32, @intFromFloat(self.wlr_cursor.x - self.grab_x));
+      // const border_y = @as(i32, @intFromFloat(self.wlr_cursor.y - self.grab_y));
+      //
+      // var new_left = self.grab_box.x;
+      // var new_right = self.grab_box.x + self.grab_box.width;
+      // var new_top = self.grab_box.y;
+      // var new_bottom = self.grab_box.y + self.grab_box.height;
+      //
+      // if (self.resize_edges.top) {
+      //   new_top = border_y;
+      //   if (new_top >= new_bottom)
+      //   new_top = new_bottom - 1;
+      // } else if (self.resize_edges.bottom) {
+      //   new_bottom = border_y;
+      //   if (new_bottom <= new_top)
+      //   new_bottom = new_top + 1;
+      // }
+      //
+      // if (self.resize_edges.left) {
+      //   new_left = border_x;
+      //   if (new_left >= new_right)
+      //   new_left = new_right - 1;
+      // } else if (self.resize_edges.right) {
+      //   new_right = border_x;
+      //   if (new_right <= new_left)
+      //   new_right = new_left + 1;
+      // }
+      //
+      // // view.x = new_left - view.xdg_toplevel.base.geometry.x;
+      // // view.y = new_top - view.xdg_toplevel.base.geometry.y;
+      // view.scene_tree.node.setPosition(view.geometry.x, view.geometry.y);
+      //
+      // const new_width = new_right - new_left;
+      // const new_height = new_bottom - new_top;
+      // _ = view.xdg_toplevel.setSize(new_width, new_height);
     },
   }
 }
@@ -142,30 +186,20 @@ fn handleButton(
         if(view_at_result) |res| {
           // Keep track of where the drag started
           cursor.selected_view = res.view;
-          cursor.drag_start_x = @as(c_int, @intFromFloat(cursor.wlr_cursor.x));
-          cursor.drag_start_y = @as(c_int, @intFromFloat(cursor.wlr_cursor.y));
-          cursor.drag_view_offset_x = cursor.drag_start_x - res.view.scene_tree.node.x;
-          cursor.drag_view_offset_y = cursor.drag_start_y - res.view.scene_tree.node.y;
-          cursor.drag_view_width = res.view.xdg_surface.geometry.width;
-          cursor.drag_view_height = res.view.xdg_surface.geometry.height;
+          cursor.drag_box.x = @as(c_int, @intFromFloat(cursor.wlr_cursor.x));
+          cursor.drag_box.y = @as(c_int, @intFromFloat(cursor.wlr_cursor.y));
 
           // Maybe comptime this for later reference
           if(event.button == c.libevdev_event_code_from_name(c.EV_KEY, "BTN_LEFT")) {
             cursor.mode = .move;
           } else if(event.button == c.libevdev_event_code_from_name(c.EV_KEY, "BTN_RIGHT")) {
             cursor.mode = .resize;
-            _ = res.view.xdg_toplevel.setResizing(true);
           }
         }
       }
     },
     .released => {
       cursor.mode = .passthrough;
-
-      if(cursor.selected_view) |view| {
-        _ = view.xdg_toplevel.setResizing(false);
-      }
-      cursor.selected_view = null;
     },
     else => {
       std.log.err("Invalid/Unimplemented pointer button event type", .{});
