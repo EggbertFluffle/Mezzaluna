@@ -14,3 +14,13 @@ package.path = package.path..";"..mez.fs.joinpath(env_conf, "mez", "lua", "?.lua
 mez.api.add_keymap("alt", "a", function()
   print("hello from my keymap")
 end)
+
+mez.api.add_keymap("alt", "t", function()
+	print("spawning foot")
+	mez.api.spawn("foot")
+end)
+
+mez.api.add_keymap("alt", "p", function()
+	print("spawning foot")
+	mez.api.spawn("wmenu-run")
+end)

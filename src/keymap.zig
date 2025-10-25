@@ -23,9 +23,10 @@ pub fn callback(self: *const Keymap) void {
   const t = Lua.state.rawGetIndex(zlua.registry_index, self.lua_ref_idx);
   if (t != zlua.LuaType.function) {
     std.log.err("Failed to call keybind, it doesn't have a callback.", .{});
+    Lua.state.pop(1);
     return;
   }
-  Lua.state.pushValue(1);
+
   Lua.state.call(.{ .args = 0, .results = 0 });
   Lua.state.pop(-1);
 }
