@@ -24,3 +24,12 @@ mez.api.add_keymap("alt", "p", function()
 	print("spawning foot")
 	mez.api.spawn("wmenu-run")
 end)
+
+-- mez.input.add_keymap("alt", "a", {
+--   press = function()
+--     print("hello from my keymap")
+--   end,
+--   release = function()
+--     print("goodbye from my keymap")
+--   end
+-- })

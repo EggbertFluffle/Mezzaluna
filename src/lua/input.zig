@@ -22,7 +22,7 @@ pub fn add_keymap(L: *zlua.Lua) i32 {
   // ensure the first three agrs of the correct types
   L.checkType(1, .string);
   L.checkType(2, .string);
-  L.checkType(3, .function);
+  L.checkType(3, .table);
 
   var keymap: Keymap = undefined;
   keymap.options = .{
@@ -63,23 +63,27 @@ pub fn add_keymap(L: *zlua.Lua) i32 {
   };
   keymap.keycode = xkb.Keysym.fromName(key, .no_flags);
 
-  L.checkType(3, .function);
-  keymap.lua_ref_idx = L.ref(zlua.registry_index) catch {
-    L.raiseErrorStr("Lua error check your config", .{});
-    return 0;
-  };
-
-  // FIXME: for som reason I can't seem to get this to validate that the 4th
-  // argument exists unless there's a 5th argument. It doesn't seem to matter
-  // what type the 5th is just that it's there.
-  if (nargs == 4) {
-    // L.checkType(4, .table);
-    // _ = L.pushString("on_release");
-    // _ = L.getTable(4);
-    // const b = L.toBoolean(-1);
-    // L.pop(-1);
-    // L.pop(-1);
+  _ = L.pushString("press");
+  _ = L.getTable(3);
+  if (L.isFunction(-1)) {
+    keymap.lua_press_ref_idx = L.ref(zlua.registry_index) catch {
+      L.raiseErrorStr("Lua error check your config", .{});
+      return 0;
+    };
   }
+
+  _ = L.pushString("release");
+  _ = L.getTable(3);
+  if (L.isFunction(-1)) {
+    keymap.lua_release_ref_idx = L.ref(zlua.registry_index) catch {
+      L.raiseErrorStr("Lua error check your config", .{});
+      return 0;
+    };
+  }
+
+  _ = L.pushString("repeat");
+  _ = L.getTable(3);
+  keymap.options.repeat = L.isNil(-1) or L.toBoolean(-1);
 
   const hash = Keymap.hash(keymap.modifier, keymap.keycode);
   server.keymaps.put(hash, keymap) catch |err| {

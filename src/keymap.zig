@@ -12,15 +12,20 @@ const Lua = &@import("main.zig").lua;
 
 modifier: wlr.Keyboard.ModifierMask,
 keycode: xkb.Keysym,
-/// This is the location of the lua function in the lua registry
-lua_ref_idx: i32,
+/// This is the location of the on press lua function in the lua registry
+lua_press_ref_idx: i32,
+/// This is the location of the on release lua function in the lua registry
+lua_release_ref_idx: i32,
 options: struct {
-  /// if false the callback is called on press
-  on_release: bool,
+  repeat: bool,
 },
 
-pub fn callback(self: *const Keymap) void {
-  const t = Lua.state.rawGetIndex(zlua.registry_index, self.lua_ref_idx);
+pub fn callback(self: *const Keymap, release: bool) void {
+  var lua_ref_idx = self.lua_press_ref_idx;
+  if (release) {
+    lua_ref_idx = self.lua_release_ref_idx;
+  }
+  const t = Lua.state.rawGetIndex(zlua.registry_index, lua_ref_idx);
   if (t != zlua.LuaType.function) {
     std.log.err("Failed to call keybind, it doesn't have a callback.", .{});
     Lua.state.pop(1);
