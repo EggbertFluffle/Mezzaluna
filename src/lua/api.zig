@@ -54,7 +54,7 @@ pub fn exit(L: *zlua.Lua) i32 {
     return 0;
   }
 
-  server.deinit();
+  server.wl_server.terminate();
 
   return 0;
 }
