@@ -10,32 +10,10 @@ const wlr = @import("wlroots");
 const gpa = std.heap.c_allocator;
 const server = &@import("../main.zig").server;
 
-pub fn add_keymap(L: *zlua.Lua) i32 {
-  const nargs: i32 = L.getTop();
-
-  if (nargs < 3) {
-    L.raiseErrorStr("Expected at least three arguments", .{});
-    return 0;
-  }
-
-  // ensure the first three agrs of the correct types
-  L.checkType(1, .string);
-  L.checkType(2, .string);
-  L.checkType(3, .table);
-
-  var keymap: Keymap = undefined;
-  keymap.options = .{
-    .repeat = true,
-  };
-
-  const mod = L.toString(1) catch {
-    L.raiseErrorStr("Lua error check your config", .{});
-    return 0;
-  };
-  var it = std.mem.splitScalar(u8, mod, '|');
+fn parse_modkeys(modStr: []const u8) wlr.Keyboard.ModifierMask {
+  var it = std.mem.splitScalar(u8, modStr, '|');
   var modifiers = wlr.Keyboard.ModifierMask{};
   while (it.next()) |m| {
-    // TODO: can we generate this at comptime?
     if (std.mem.eql(u8, m, "shift")) {
       modifiers.shift = true;
     } else if (std.mem.eql(u8, m, "caps")) {
@@ -54,7 +32,26 @@ pub fn add_keymap(L: *zlua.Lua) i32 {
       modifiers.mod5 = true;
     }
   }
-  keymap.modifier = modifiers;
+
+  return modifiers;
+}
+
+pub fn add_keymap(L: *zlua.Lua) i32 {
+  // ensure the first three agrs of the correct types
+  L.checkType(1, .string);
+  L.checkType(2, .string);
+  L.checkType(3, .table);
+
+  var keymap: Keymap = undefined;
+  keymap.options = .{
+    .repeat = true,
+  };
+
+  const mod = L.toString(1) catch {
+    L.raiseErrorStr("Lua error check your config", .{});
+    return 0;
+  };
+  keymap.modifier = parse_modkeys(mod);
 
   const key = L.toString(2) catch {
     L.raiseErrorStr("Lua error check your config", .{});
@@ -93,7 +90,23 @@ pub fn add_keymap(L: *zlua.Lua) i32 {
   return 0;
 }
 
-pub fn get_keybind(L: *zlua.Lua) i32 {
-  _ = L;
+pub fn del_keymap(L: *zlua.Lua) i32 {
+  L.checkType(1, .string);
+  L.checkType(2, .string);
+
+  var keymap: Keymap = undefined;
+  const mod = L.toString(1) catch {
+    L.raiseErrorStr("Lua error check your config", .{});
+    return 0;
+  };
+  keymap.modifier = parse_modkeys(mod);
+
+  const key = L.toString(2) catch {
+    L.raiseErrorStr("Lua error check your config", .{});
+    return 0;
+  };
+  keymap.keycode = xkb.Keysym.fromName(key, .no_flags);
+  _ = server.keymaps.remove(Keymap.hash(keymap.modifier, keymap.keycode));
+
   return 0;
 }
