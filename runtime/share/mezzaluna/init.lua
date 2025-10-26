@@ -35,6 +35,12 @@ mez.input.add_keymap("alt", "q", {
 	end
 })
 
+for i = 1, 12 do
+  mez.input.add_keymap("ctrl|alt", "XF86Switch_VT_"..i, {
+    press = function() mez.api.chvt(i) end
+  })
+end
+
 -- mez.input.add_keymap("alt", "a", {
 --   press = function()
 --     print("hello from my keymap")
