@@ -38,8 +38,6 @@ pub fn init(self: *Root) void {
     .scene_output_layout = try scene.attachOutputLayout(output_layout),
     .views = .init(gpa)
   };
-
-
 }
 
 pub fn deinit(self: *Root) void {
@@ -56,7 +54,8 @@ pub fn deinit(self: *Root) void {
 
 pub fn addOutput(self: *Root, new_output: *Output) void {
   errdefer Utils.oomPanic();
-  _ = try self.output_layout.addAuto(new_output.wlr_output);
+  const layout_output = try self.output_layout.addAuto(new_output.wlr_output);
+  self.scene_output_layout.addOutput(layout_output, new_output.scene_output);
   server.seat.focusOutput(new_output);
 }
 
