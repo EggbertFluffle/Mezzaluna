@@ -59,14 +59,16 @@ pub fn init(self: *Cursor) void {
 }
 
 pub fn deinit(self: *Cursor) void {
-  self.wlr_cursor.destroy();
-  self.x_cursor_manager.destroy();
-
   self.motion.link.remove();
   self.motion_absolute.link.remove();
   self.button.link.remove();
   self.axis.link.remove();
   self.frame.link.remove();
+  self.hold_begin.link.remove();
+  self.hold_end.link.remove();
+
+  self.wlr_cursor.destroy();
+  self.x_cursor_manager.destroy();
 }
 
 pub fn processCursorMotion(self: *Cursor, time_msec: u32) void {
