@@ -17,8 +17,6 @@ wlr_keyboard: *wlr.Keyboard,
 context: *xkb.Context,
 device: *wlr.InputDevice,
 
-link: wl.list.Link = undefined,
-
 // Keyboard listeners
 key: wl.Listener(*wlr.Keyboard.event.Key) = .init(handleKey),
 key_map: wl.Listener(*wlr.Keyboard) = .init(handleKeyMap),
@@ -106,10 +104,9 @@ pub fn handleDestroy(listener: *wl.Listener(*wlr.InputDevice), _: *wlr.InputDevi
 
   std.log.debug("removing keyboard: {s}", .{keyboard.device.name orelse "(null)"});
 
-  keyboard.link.remove();
-
   keyboard.modifiers.link.remove();
   keyboard.key.link.remove();
+  keyboard.key_map.link.remove();
   keyboard.destroy.link.remove();
 
   gpa.destroy(keyboard);
