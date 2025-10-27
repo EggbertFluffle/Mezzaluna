@@ -1,5 +1,6 @@
 const std = @import("std");
 const zlua = @import("zlua");
+const wlr = @import("wlroots");
 
 const gpa = std.heap.c_allocator;
 
@@ -53,7 +54,23 @@ pub fn exit(L: *zlua.Lua) i32 {
     return 0;
   }
 
-  server.deinit();
+  server.wl_server.terminate();
+
+  return 0;
+}
+
+pub fn chvt(L: *zlua.Lua) i32 {
+  L.checkType(1, .number);
+  const f = L.toNumber(-1) catch unreachable;
+  const n: u32 = @intFromFloat(f);
+
+  if (server.session) |session| {
+    wlr.Session.changeVt(session, n) catch {
+      L.raiseErrorStr("Failed to switch vt", .{});
+    };
+  } else {
+    L.raiseErrorStr("Mez has not been initialized yet", .{});
+  }
 
   return 0;
 }
