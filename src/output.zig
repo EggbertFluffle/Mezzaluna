@@ -91,7 +91,6 @@ fn handleDestroy(
   output.destroy.link.remove();
 
   server.root.output_layout.remove(output.wlr_output);
-  output.scene_output.destroy();
 
   gpa.destroy(output);
 }
