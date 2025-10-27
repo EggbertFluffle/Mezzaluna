@@ -1,0 +1,27 @@
+info: Starting mezzaluna
+info: Creating root of mezzaluna
+
+debug: Loaded lua
+info: Starting backend
+error: New input request for input that is not a keyboard or pointer: Lid Switch
+info: Handling a new output - eDP-1
+debug: adding output: eDP-1
+info: Starting server
+warn: wayland.c:1777: compositor does not implement the primary selection interface
+warn: wayland.c:1780: compositor does not implement XDG activation, bell.urgent will fall back to coloring the window margins red
+warn: wayland.c:1786: compositor does not implement fractional scaling
+warn: wayland.c:1789: compositor does not implement server-side cursors, falling back to client-side cursors
+warn: wayland.c:1794: compositor does not implement the XDG toplevel icon protocol
+warn: wayland.c:1799: text input interface not implemented by compositor; IME will be disabled
+debug: Request for new toplevel
+debug: Mapping view 'foot'
+Segmentation fault at address 0xc8f8920
+???:?:?: 0xc8f8920 in ??? (???)
+Unwind information for `???:0xc8f8920` was not available, trace may be incomplete
+
+ err: wayland.c:1675: failed to read events from the Wayland socket: Broken pipe
+ err: wayland.c:2318: failed to roundtrip Wayland display: Broken pipe
+ err: wayland.c:2318: failed to roundtrip Wayland display: Broken pipe
+ err: wayland.c:2318: failed to roundtrip Wayland display: Broken pipe
+warn: terminal.c:2029: slave exited with signal 1 (Hangup)
+ err: wayland.c:2283: failed to flush wayland socket: Broken pipe

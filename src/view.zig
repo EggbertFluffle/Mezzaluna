@@ -110,8 +110,8 @@ fn handleMap(listener: *wl.Listener(void)) void {
   const xdg_surface = view.xdg_toplevel.base;
   server.seat.wlr_seat.keyboardNotifyEnter(
     xdg_surface.surface,
-    server.keyboard.wlr_keyboard.keycodes[0..server.keyboard.wlr_keyboard.num_keycodes],
-    &server.keyboard.wlr_keyboard.modifiers
+    server.seat.keyboard_group.keyboard.keycodes[0..server.seat.keyboard_group.keyboard.num_keycodes],
+    &server.seat.keyboard_group.keyboard.modifiers
   );
 
   if(view.xdg_toplevel_decoration) |decoration| {

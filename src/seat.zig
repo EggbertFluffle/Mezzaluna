@@ -3,6 +3,7 @@ const Seat = @This();
 const std = @import("std");
 const wlr = @import("wlroots");
 const wl = @import("wayland").server.wl;
+const xkb = @import("xkbcommon");
 
 const Utils = @import("utils.zig");
 const View = @import("view.zig");
@@ -14,6 +15,9 @@ wlr_seat: *wlr.Seat,
 focused_view: ?*View,
 focused_output: ?*Output,
 
+keyboard_group: *wlr.KeyboardGroup,
+keymap: *xkb.Keymap,
+
 request_set_cursor: wl.Listener(*wlr.Seat.event.RequestSetCursor) = .init(handleRequestSetCursor),
 request_set_selection: wl.Listener(*wlr.Seat.event.RequestSetSelection) = .init(handleRequestSetSelection),
 // request_set_primary_selection
@@ -22,11 +26,32 @@ request_set_selection: wl.Listener(*wlr.Seat.event.RequestSetSelection) = .init(
 pub fn init(self: *Seat) void {
   errdefer Utils.oomPanic();
 
+  const xkb_context = xkb.Context.new(.no_flags) orelse {
+    std.log.err("Unable to create a xkb context, exiting", .{});
+    std.process.exit(7);
+  };
+  defer xkb_context.unref();
+
+  const keymap = xkb.Keymap.newFromNames(xkb_context, null, .no_flags) orelse {
+    std.log.err("Unable to create a xkb keymap, exiting", .{});
+    std.process.exit(8);
+  };
+  defer keymap.unref();
+
   self.* = .{
     .wlr_seat = try wlr.Seat.create(server.wl_server, "default"),
     .focused_view = null,
     .focused_output = null,
+    .keyboard_group = try wlr.KeyboardGroup.create(),
+    .keymap = keymap.ref(),
   };
+  errdefer {
+    self.keyboard_group.destroy();
+    self.wlr_seat.destroy();
+  }
+
+  _ = self.keyboard_group.keyboard.setKeymap(self.keymap);
+  self.wlr_seat.setKeyboard(&self.keyboard_group.keyboard);
 
   self.wlr_seat.events.request_set_cursor.add(&self.request_set_cursor);
   self.wlr_seat.events.request_set_selection.add(&self.request_set_selection);
@@ -36,6 +61,7 @@ pub fn deinit(self: *Seat) void {
   self.request_set_cursor.link.remove();
   self.request_set_selection.link.remove();
 
+  self.keyboard_group.destroy();
   self.wlr_seat.destroy();
 }
 

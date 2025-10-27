@@ -34,7 +34,6 @@ allocator: *wlr.Allocator,
 root: Root,
 seat: Seat,
 cursor: Cursor,
-keyboard: Keyboard,
 keymaps: std.AutoHashMap(u64, Keymap),
 
 // Backend listeners
@@ -90,7 +89,6 @@ pub fn init(self: *Server) void {
     .root = undefined,
     .seat = undefined,
     .cursor = undefined,
-    .keyboard = undefined,
     .keymaps = .init(gpa),
   };
 
@@ -145,7 +143,7 @@ fn handleNewInput(
   device: *wlr.InputDevice
 ) void {
   switch (device.type) {
-    .keyboard => server.keyboard.init(device),
+    .keyboard => _ = Keyboard.init(device),
     .pointer => server.cursor.wlr_cursor.attachInputDevice(device),
     else => {
       std.log.err(
@@ -157,7 +155,7 @@ fn handleNewInput(
 
   server.seat.wlr_seat.setCapabilities(.{
     .pointer = true,
-    .keyboard = server.keyboard.keyboards.length() > 0,
+    .keyboard = true,
   });
 }
 

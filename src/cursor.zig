@@ -138,7 +138,7 @@ fn handleButton(
 
   switch (event.state) {
     .pressed => {
-      if(server.keyboard.wlr_keyboard.getModifiers().alt) {
+      if(server.seat.keyboard_group.keyboard.getModifiers().alt) {
         // Can be BTN_RIGHT, BTN_LEFT, or BTN_MIDDLE
         if(server.seat.focused_view) |view| {
           // Keep track of where the drag started
