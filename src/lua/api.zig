@@ -65,6 +65,7 @@ pub fn chvt(L: *zlua.Lua) i32 {
   const n: u32 = @intFromFloat(f);
 
   if (server.session) |session| {
+    std.log.debug("Changing virtual terminal to {d}", .{ n });
     wlr.Session.changeVt(session, n) catch {
       L.raiseErrorStr("Failed to switch vt", .{});
     };
