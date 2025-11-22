@@ -244,14 +244,6 @@ fn handleRequestMinimize(
   std.log.err("Unimplemented request minimize", .{});
 }
 
-fn handleRequestMaximize(
-  listener: *wl.Listener(void)
-) void {
-  const view: *View = @fieldParentPtr("request_fullscreen", listener);
-  _ = view;
-  std.log.err("Unimplemented request maximize", .{});
-}
-
 fn handleSetAppId(
   listener: *wl.Listener(void)
 ) void {
