@@ -100,7 +100,7 @@ fn handleMap(listener: *wl.Listener(void)) void {
   const view: *View = @fieldParentPtr("map", listener);
   std.log.debug("Mapping view '{s}'", .{view.xdg_toplevel.title orelse "(unnamed)"});
 
-  server.events.exec("WinMapPre");
+  server.events.exec("ViewMapPre");
 
   view.xdg_toplevel.events.request_fullscreen.add(&view.request_fullscreen);
   view.xdg_toplevel.events.request_move.add(&view.request_move);
@@ -124,7 +124,7 @@ fn handleMap(listener: *wl.Listener(void)) void {
 
   view.mapped = true;
 
-  server.events.exec("WinMapPost");
+  server.events.exec("ViewMapPost");
 }
 
 fn handleUnmap(listener: *wl.Listener(void)) void {

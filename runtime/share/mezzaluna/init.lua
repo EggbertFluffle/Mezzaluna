@@ -50,7 +50,7 @@ end
 --   end
 -- })
 
-mez.hook.add_hook("WinMapPre", {
+mez.hook.add_hook("ViewMapPre", {
   callback = function()
     print("hello world")
   end
