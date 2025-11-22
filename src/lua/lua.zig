@@ -8,6 +8,7 @@ const Bridge = @import("bridge.zig");
 const Fs = @import("fs.zig");
 const Input = @import("input.zig");
 const Api = @import("api.zig");
+const Hook = @import("hook.zig");
 
 const gpa = std.heap.c_allocator;
 
@@ -63,6 +64,11 @@ pub fn init(self: *Lua) !void {
       const input_funcs = zlua.fnRegsFromType(Input);
       self.state.newLib(input_funcs);
       self.state.setField(-2, "input");
+    }
+    {
+      const hook_funcs = zlua.fnRegsFromType(Hook);
+      self.state.newLib(hook_funcs);
+      self.state.setField(-2, "hook");
     }
     {
       const api_funcs = zlua.fnRegsFromType(Api);

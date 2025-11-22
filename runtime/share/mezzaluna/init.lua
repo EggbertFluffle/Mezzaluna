@@ -49,3 +49,9 @@ end
 --     print("goodbye from my keymap")
 --   end
 -- })
+
+mez.hook.add_hook("WinMapPre", {
+  callback = function()
+    print("hello world")
+  end
+})
