@@ -257,7 +257,7 @@ fn handleSetAppId(
 ) void {
   const view: *View = @fieldParentPtr("set_app_id", listener);
   _ = view;
-  std.log.err("Unimplemented request maximize", .{});
+  std.log.err("Unimplemented set appid", .{});
 }
 
 fn handleSetTitle(
