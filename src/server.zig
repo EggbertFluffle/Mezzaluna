@@ -11,7 +11,7 @@ const Keyboard = @import("keyboard.zig");
 const Output = @import("output.zig");
 const View = @import("view.zig");
 const Utils = @import("utils.zig");
-const Keymap = @import("keymap.zig");
+const Keymap = @import("types/keymap.zig");
 const Hook = @import("types/hook.zig");
 const Events = @import("types/events.zig");
 

@@ -1,7 +1,7 @@
 const Api = @This();
 
 const std = @import("std");
-const Keymap = @import("../keymap.zig");
+const Keymap = @import("../types/keymap.zig");
 
 const zlua = @import("zlua");
 const xkb = @import("xkbcommon");
@@ -43,9 +43,7 @@ pub fn add_keymap(L: *zlua.Lua) i32 {
   L.checkType(3, .table);
 
   var keymap: Keymap = undefined;
-  keymap.options = .{
-    .repeat = true,
-  };
+  keymap.options.repeat = true;
 
   const mod = L.toString(1) catch {
     L.raiseErrorStr("Lua error check your config", .{});
@@ -62,7 +60,7 @@ pub fn add_keymap(L: *zlua.Lua) i32 {
   _ = L.pushString("press");
   _ = L.getTable(3);
   if (L.isFunction(-1)) {
-    keymap.lua_press_ref_idx = L.ref(zlua.registry_index) catch {
+    keymap.options.lua_press_ref_idx = L.ref(zlua.registry_index) catch {
       L.raiseErrorStr("Lua error check your config", .{});
       return 0;
     };
@@ -71,7 +69,7 @@ pub fn add_keymap(L: *zlua.Lua) i32 {
   _ = L.pushString("release");
   _ = L.getTable(3);
   if (L.isFunction(-1)) {
-    keymap.lua_release_ref_idx = L.ref(zlua.registry_index) catch {
+    keymap.options.lua_release_ref_idx = L.ref(zlua.registry_index) catch {
       L.raiseErrorStr("Lua error check your config", .{});
       return 0;
     };
