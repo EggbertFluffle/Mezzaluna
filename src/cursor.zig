@@ -100,8 +100,9 @@ pub fn processCursorMotion(self: *Cursor, time_msec: u32) void {
 
       if(focused_view) |view| {
         _ = view.xdg_toplevel.setSize(
-          @intCast(@as(c_int, @intFromFloat(self.wlr_cursor.x)) - view.scene_tree.node.x),
-          @intCast(@as(c_int, @intFromFloat(self.wlr_cursor.y)) - view.scene_tree.node.y)
+          // TODO: configure the min and max using lua?
+          std.math.clamp(@as(c_int, @as(i32, @intFromFloat(self.wlr_cursor.x)) - view.scene_tree.node.x), 10, std.math.maxInt(i32)),
+          std.math.clamp(@as(c_int, @as(i32, @intFromFloat(self.wlr_cursor.y)) - view.scene_tree.node.y), 10, std.math.maxInt(i32))
         );
       }
     },
