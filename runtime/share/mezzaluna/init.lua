@@ -1,10 +1,10 @@
 local env_conf = os.getenv("XDG_CONFIG_HOME")
 if not env_conf then
-	env_conf = os.getenv("HOME")
-	if not env_conf then
-		error("Couldn't determine potential config directory is $HOME set?")
-	end
-	env_conf = mez.fs.joinpath(env_conf, ".config")
+  env_conf = os.getenv("HOME")
+  if not env_conf then
+    error("Couldn't determine potential config directory is $HOME set?")
+  end
+  env_conf = mez.fs.joinpath(env_conf, ".config")
 end
 
 mez.path.config = mez.fs.joinpath(env_conf, "mez", "init.lua")
@@ -12,27 +12,27 @@ package.path = package.path..";"..mez.fs.joinpath(env_conf, "mez", "lua", "?.lua
 
 -- this is an example
 mez.input.add_keymap("alt", "a", {
-	press = function()
-		print("hello from my keymap")
-	end
+  press = function()
+    print("hello from my keymap")
+  end
 })
 
 mez.input.add_keymap("alt", "Return", {
-	press = function()
-		mez.api.spawn("foot")
-	end,
+  press = function()
+    mez.api.spawn("foot")
+  end,
 })
 
 mez.input.add_keymap("alt", "c", {
-	press = function ()
-		mez.api.close()
-	end
+  press = function ()
+    mez.api.close()
+  end
 })
 
 mez.input.add_keymap("alt", "q", {
-	press = function ()
-		mez.api.exit();
-	end
+  press = function ()
+    mez.api.exit();
+  end
 })
 
 for i = 1, 12 do
@@ -51,7 +51,8 @@ end
 -- })
 
 mez.hook.add_hook("ViewMapPre", {
-  callback = function()
+  callback = function(a)
+    print(a)
     print("hello world")
   end
 })
