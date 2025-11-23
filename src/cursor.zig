@@ -89,8 +89,11 @@ pub fn processCursorMotion(self: *Cursor, time_msec: u32) void {
 
       if(focused_view) |view| {
         view.scene_tree.node.setPosition(
-          std.math.clamp(@as(c_int, @intFromFloat(self.wlr_cursor.x)) - self.drag_view_offset_x, 0, std.math.maxInt(u32)),
-          std.math.clamp(@as(c_int, @intFromFloat(self.wlr_cursor.y)) - self.drag_view_offset_y, 0, std.math.maxInt(u32))
+          // TODO: add a lua option to configure the behavior of this, by
+          // default it will be the following:
+          @as(c_int, @intFromFloat(self.wlr_cursor.x)) - self.drag_view_offset_x,
+          @as(c_int, @intFromFloat(self.wlr_cursor.y)) - self.drag_view_offset_y
+          // and the user should be able to configure if it clamps or not
         );
       }
     },
