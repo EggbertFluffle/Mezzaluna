@@ -14,22 +14,10 @@ fn parse_modkeys(modStr: []const u8) wlr.Keyboard.ModifierMask {
   var it = std.mem.splitScalar(u8, modStr, '|');
   var modifiers = wlr.Keyboard.ModifierMask{};
   while (it.next()) |m| {
-    if (std.mem.eql(u8, m, "shift")) {
-      modifiers.shift = true;
-    } else if (std.mem.eql(u8, m, "caps")) {
-      modifiers.caps = true;
-    } else if (std.mem.eql(u8, m, "ctrl")) {
-      modifiers.ctrl = true;
-    } else if (std.mem.eql(u8, m, "alt")) {
-      modifiers.alt = true;
-    } else if (std.mem.eql(u8, m, "mod2")) {
-      modifiers.mod2 = true;
-    } else if (std.mem.eql(u8, m, "mod3")) {
-      modifiers.mod3 = true;
-    } else if (std.mem.eql(u8, m, "logo")) {
-      modifiers.logo = true;
-    } else if (std.mem.eql(u8, m, "mod5")) {
-      modifiers.mod5 = true;
+    inline for (std.meta.fields(@TypeOf(modifiers))) |f| {
+      if (f.type == bool and std.mem.eql(u8, m, f.name)) {
+        @field(modifiers, f.name) = true;
+      }
     }
   }
 
