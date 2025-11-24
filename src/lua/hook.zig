@@ -9,7 +9,7 @@ const zlua = @import("zlua");
 const gpa = std.heap.c_allocator;
 const server = &@import("../main.zig").server;
 
-pub fn add_hook(L: *zlua.Lua) i32 {
+pub fn add(L: *zlua.Lua) i32 {
   L.checkType(2, .table);
 
   var hook: *THook = gpa.create(THook) catch {
@@ -22,7 +22,7 @@ pub fn add_hook(L: *zlua.Lua) i32 {
   };
 
   // We support both a string and a table of strings as the first value of
-  // add_hook. Regardless of which type is passed in we create an arraylist of
+  // add. Regardless of which type is passed in we create an arraylist of
   // []const u8's
   if (L.isTable(1)) {
     L.pushNil();
@@ -74,7 +74,7 @@ pub fn add_hook(L: *zlua.Lua) i32 {
   return 0;
 }
 
-pub fn del_hook(L: *zlua.Lua) i32 {
+pub fn del(L: *zlua.Lua) i32 {
   // TODO: impl
   _ = L;
   return 0;
