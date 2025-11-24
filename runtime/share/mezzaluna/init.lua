@@ -58,7 +58,7 @@ end
 --   end
 -- })
 
-mez.hook.add_hook("ViewMapPre", {
+mez.hook.add("ViewMapPre", {
   callback = function(a)
     print(a)
     print("hello world")
