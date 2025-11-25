@@ -31,19 +31,14 @@ pub fn callback(self: *const Hook, args: anytype) void {
     return;
   }
 
+  // allow passing any arguments to the lua hook
   var i: u8 = 0;
-  inline for (args, 0..) |field, k| {
-    // std.log.debug("{any}", .{field});
-
-    // oh dear god I hope this works
-    std.log.debug("sldkjf {any}", .{field});
+  inline for (args, 1..) |field, k| {
     try Lua.state.pushAny(field);
     i = k;
   }
 
-  // TODO: we need to send some data along with the callback, this data will
-  // change based on the event which the user is hooking into
-  Lua.state.protectedCall(.{ .args = i, .results = 0 }) catch {
+  Lua.state.protectedCall(.{ .args = i }) catch {
   };
   Lua.state.pop(-1);
 }

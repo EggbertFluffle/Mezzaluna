@@ -137,7 +137,7 @@ fn handleMap(listener: *wl.Listener(void)) void {
 
   view.mapped = true;
 
-  server.events.exec("ViewMapPost", .{});
+  server.events.exec("ViewMapPost", .{view.id});
 }
 
 fn handleUnmap(listener: *wl.Listener(void)) void {

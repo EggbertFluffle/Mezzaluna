@@ -59,8 +59,7 @@ end
 -- })
 
 mez.hook.add("ViewMapPre", {
-  callback = function(a)
-    print(a)
-    print("hello world")
+  callback = function(v)
+    mez.view.set_size(v, 1000, 1000)
   end
 })
