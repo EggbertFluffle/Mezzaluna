@@ -8,7 +8,6 @@ const Bridge = @import("bridge.zig");
 const Fs = @import("fs.zig");
 const Input = @import("input.zig");
 const Api = @import("api.zig");
-const View = @import("view.zig");
 const Hook = @import("hook.zig");
 const View = @import("view.zig");
 
