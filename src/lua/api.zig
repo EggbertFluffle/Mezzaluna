@@ -59,7 +59,7 @@ pub fn exit(L: *zlua.Lua) i32 {
   return 0;
 }
 
-pub fn chvt(L: *zlua.Lua) i32 {
+pub fn change_vt(L: *zlua.Lua) i32 {
   L.checkType(1, .number);
   const f = L.toNumber(-1) catch unreachable;
   const n: u32 = @intFromFloat(f);

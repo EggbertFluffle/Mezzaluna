@@ -13,6 +13,7 @@ const server = &@import("main.zig").server;
 focused: bool,
 
 wlr_output: *wlr.Output,
+state: wlr.Output.State,
 scene_output: *wlr.SceneOutput,
 
 frame: wl.Listener(*wlr.Output) = .init(handleFrame),
@@ -20,7 +21,7 @@ request_state: wl.Listener(*wlr.Output.event.RequestState) = .init(handleRequest
 destroy: wl.Listener(*wlr.Output) = .init(handleDestroy),
 
 // The wlr.Output should be destroyed by the caller on failure to trigger cleanup.
-pub fn create(wlr_output: *wlr.Output) *Output {
+pub fn init(wlr_output: *wlr.Output) ?*Output {
   errdefer Utils.oomPanic();
 
   const output = try gpa.create(Output);
@@ -28,25 +29,51 @@ pub fn create(wlr_output: *wlr.Output) *Output {
   output.* = .{
     .focused = false,
     .wlr_output = wlr_output,
-    .scene_output = try server.root.scene.createSceneOutput(wlr_output)
+    .scene_output = try server.root.scene.createSceneOutput(wlr_output),
+    .state = wlr.Output.State.init()
   };
 
   wlr_output.events.frame.add(&output.frame);
   wlr_output.events.request_state.add(&output.request_state);
   wlr_output.events.destroy.add(&output.destroy);
 
-  std.log.debug("adding output: {s}", .{output.wlr_output.name});
+  errdefer deinit(output);
+
+  if(!wlr_output.initRender(server.allocator, server.renderer)) {
+    std.log.err("Unable to start output {s}", .{wlr_output.name});
+    return null;
+  }
+
+  output.state.setEnabled(true);
+
+  if (wlr_output.preferredMode()) |mode| {
+    output.state.setMode(mode);
+  }
+
+  if(!wlr_output.commitState(&output.state)) {
+    std.log.err("Unable to commit state to output {s}", .{wlr_output.name});
+    return null;
+  }
+
+  server.root.addOutput(output);
 
   return output;
 }
 
-// Conflicting name with destroy listener
-// Should probably add _listner as a postfix to listeners
-//
-// pub fn destroy(output: *Output) void {
-//   gpa.free(output);
-// }
+pub fn deinit(output: *Output) void {
+  output.frame.link.remove();
+  output.request_state.link.remove();
+  output.destroy.remove();
 
+  output.state.finish();
+
+  output.wlr_output.destroy();
+
+  gpa.free(output);
+}
+
+
+// --------- WlrOutput Event Handlers ---------
 fn handleRequestState(
   listener: *wl.Listener(*wlr.Output.event.RequestState),
   event: *wlr.Output.event.RequestState,

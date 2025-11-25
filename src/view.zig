@@ -51,20 +51,19 @@ pub fn initFromTopLevel(xdg_toplevel: *wlr.XdgToplevel) *View {
   errdefer gpa.destroy(self);
 
   self.* = .{
-    .xdg_toplevel = xdg_toplevel,
     .focused = false,
-    .scene_tree = undefined,
-    .xdg_toplevel_decoration = null,
     .mapped = false,
     .id = @intFromPtr(xdg_toplevel),
+
+    .xdg_toplevel = xdg_toplevel,
+    .scene_tree = undefined,
+    .xdg_toplevel_decoration = null,
   };
 
   self.xdg_toplevel.base.surface.events.unmap.add(&self.unmap);
 
-  // Add new Toplevel to focused output instead of some random shit
-  // This is where we find out where to tile the widow, but not NOW
-  // We need lua for that
-  // self.scene_tree = try server.root.workspaces.items[0].createSceneXdgSurface(xdg_toplevel.base);
+  // Add new Toplevel to root of the tree
+  // Later add to spesified output
   self.scene_tree = try server.root.scene.tree.createSceneXdgSurface(xdg_toplevel.base);
 
   self.scene_tree.node.data = self;
@@ -74,8 +73,6 @@ pub fn initFromTopLevel(xdg_toplevel: *wlr.XdgToplevel) *View {
   self.xdg_toplevel.base.surface.events.map.add(&self.map);
   self.xdg_toplevel.base.surface.events.commit.add(&self.commit);
   self.xdg_toplevel.base.events.new_popup.add(&self.new_popup);
-
-  try server.root.views.put(self.id, self);
 
   return self;
 }
@@ -90,9 +87,25 @@ pub fn deinit(self: *View) void {
   self.request_resize.link.remove();
 }
 
-// Handle borders to appropriate colros make necessary notifications
-pub fn setFocus(self: *View, focus: bool) void {
-  self.focused = focus;
+pub fn setFocused(self: *View) void {
+  if(server.seat.focused_view) |prev_view| {
+    prev_view.focused = false;
+  }
+  server.seat.focused_view = self;
+  self.focused = true;
+}
+
+pub fn raiseToTop(self: *View) void {
+  self.scene_tree.node.raiseToTop();
+}
+
+pub fn setPosition(self: *View, x: i32, y: i32) void {
+  self.scene_tree.node.setPosition(x, y);
+}
+
+pub fn setSize(self: *View, width: i32, height: i32) void {
+  // This returns a configure serial for verifying the configure
+  _ = self.xdg_toplevel.setSize(width, height);
 }
 
 // --------- XdgTopLevel event handlers ---------
@@ -159,8 +172,6 @@ fn handleDestroy(listener: *wl.Listener(void)) void {
   view.scene_tree.node.destroy();
   // Destroy popups
 
-  _ = server.root.views.remove(view.id);
-
   gpa.destroy(view);
 }
 
@@ -169,7 +180,7 @@ fn handleCommit(listener: *wl.Listener(*wlr.Surface), _: *wlr.Surface) void {
 
   // On the first commit, send a configure to tell the client it can proceed
   if (view.xdg_toplevel.base.initial_commit) {
-    _ = view.xdg_toplevel.setSize(640, 360); // 0,0 means "you decide the size"
+    view.setSize(640, 360);
   }
 }
 

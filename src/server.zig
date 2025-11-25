@@ -161,6 +161,7 @@ fn handleNewInput(
     },
   }
 
+  // We should really only set true capabilities
   server.seat.wlr_seat.setCapabilities(.{
     .pointer = true,
     .keyboard = true,
@@ -171,30 +172,13 @@ fn handleNewOutput(
   _: *wl.Listener(*wlr.Output),
   wlr_output: *wlr.Output
 ) void {
-  std.log.info("Handling a new output - {s}", .{wlr_output.name});
-
-  if (!wlr_output.initRender(server.allocator, server.renderer)) return;
-
-  var state = wlr.Output.State.init();
-  defer state.finish();
-
-  state.setEnabled(true);
-
-  if (wlr_output.preferredMode()) |mode| {
-    state.setMode(mode);
-  }
-  if (!wlr_output.commitState(&state)) return;
-
-  const new_output = Output.create(wlr_output);
-
-  server.root.addOutput(new_output);
+  _ = Output.init(wlr_output);
 }
 
 fn handleNewXdgToplevel(
   _: *wl.Listener(*wlr.XdgToplevel),
   xdg_toplevel: *wlr.XdgToplevel
 ) void {
-  std.log.debug("Request for new toplevel", .{});
   _ = View.initFromTopLevel(xdg_toplevel);
 }
 
@@ -203,7 +187,7 @@ fn handleNewXdgToplevelDecoration(
   decoration: *wlr.XdgToplevelDecorationV1
 ) void {
   std.log.debug("Request for decorations", .{});
-  if(server.root.views.get(@intFromPtr(decoration.toplevel))) |view| {
+  if(server.root.viewById(@intFromPtr(decoration.toplevel))) |view| {
     view.xdg_toplevel_decoration = decoration;
   }
 }

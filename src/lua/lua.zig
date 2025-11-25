@@ -9,6 +9,7 @@ const Fs = @import("fs.zig");
 const Input = @import("input.zig");
 const Api = @import("api.zig");
 const Hook = @import("hook.zig");
+const View = @import("view.zig");
 
 const gpa = std.heap.c_allocator;
 
@@ -75,6 +76,11 @@ pub fn init(self: *Lua) !void {
       self.state.newLib(api_funcs);
       self.state.setField(-2, "api");
     }
+    {
+      const view_funcs = zlua.fnRegsFromType(View);
+      self.state.newLib(view_funcs);
+      self.state.setField(-2, "view");
+    }
   }
 
   loadRuntimeDir(self) catch |err| {
@@ -82,6 +88,7 @@ pub fn init(self: *Lua) !void {
       std.log.warn("{s}", .{try self.state.toString(-1)});
     }
   };
+
   loadConfigDir(self) catch |err| {
     if (err == error.LuaRuntime) {
       std.log.warn("{s}", .{try self.state.toString(-1)});

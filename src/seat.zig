@@ -73,15 +73,6 @@ pub fn focusOutput(self: *Seat, output: *Output) void {
   self.focused_output = output;
 }
 
-// TODO: Should focusing a view, automaticall focus the output containing it
-pub fn focusView(self: *Seat, view: *View) void {
-  if(self.focused_view) |prev_view| {
-    prev_view.setFocus(false);
-  }
-
-  self.focused_view = view;
-}
-
 fn handleRequestSetCursor(
   _: *wl.Listener(*wlr.Seat.event.RequestSetCursor),
   event: *wlr.Seat.event.RequestSetCursor,

@@ -77,6 +77,18 @@ pub fn build(b: *std.Build) void {
 
   b.installArtifact(mez);
 
+  const exe_check = b.addExecutable(.{
+    .name = "mez",
+    .root_module = b.createModule(.{
+      .root_source_file = b.path("src/main.zig"),
+      .target = target,
+      .optimize = optimize,
+    })
+  });
+
+  const check = b.step("check", "check if mez compiles");
+  check.dependOn(&exe_check.step);
+
   const run_step = b.step("run", "Run the app");
   const run_cmd = b.addRunArtifact(mez);
   run_step.dependOn(&run_cmd.step);
