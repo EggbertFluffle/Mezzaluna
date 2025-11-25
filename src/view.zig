@@ -95,8 +95,7 @@ pub fn setFocused(self: *View) void {
     }
   }
 
-  self.raiseToTop();
-
+  self.scene_tree.node.raiseToTop();
   _ = self.xdg_toplevel.setActivated(true);
 
   const wlr_keyboard = server.seat.wlr_seat.getKeyboard() orelse return;
@@ -111,10 +110,6 @@ pub fn setFocused(self: *View) void {
   }
   server.seat.focused_view = self;
   self.focused = true;
-}
-
-pub fn raiseToTop(self: *View) void {
-  self.scene_tree.node.raiseToTop();
 }
 
 pub fn setPosition(self: *View, x: i32, y: i32) void {

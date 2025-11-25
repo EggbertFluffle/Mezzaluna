@@ -51,23 +51,31 @@ mez.input.add_keymap("alt", "v", {
 	end
 })
 
+mez.input.add_keymap("alt", "Tab", {
+	press = function ()
+		print("alt+tab")
+
+		local focused = mez.view.get_focused_id()
+		local all = mez.view.get_all_ids()
+
+		for _, id in ipairs(all) do
+			if id ~= focused then
+				mez.view.set_focused(id)
+				return
+			end
+		end
+	end
+})
+
 for i = 1, 12 do
   mez.input.add_keymap("ctrl|alt", "XF86Switch_VT_"..i, {
     press = function() mez.api.change_vt(i) end
   })
 end
 
--- mez.input.add_keymap("alt", "a", {
---   press = function()
---     print("hello from my keymap")
---   end,
---   release = function()
---     print("goodbye from my keymap")
---   end
--- })
-
 mez.hook.add("ViewMapPre", {
   callback = function(v)
     mez.view.set_size(v, 1000, 1000)
+	mez.view.set_focused(v)
   end
 })

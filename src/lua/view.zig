@@ -29,7 +29,7 @@ pub fn get_all_ids(L: *zlua.Lua) i32 {
 
 pub fn get_focused_id(L: *zlua.Lua) i32 {
   if(server.seat.focused_view) |view| {
-    _ = L.pushNumber(@floatFromInt(view.id));
+    L.pushInteger(@intCast(view.id));
     return 1;
   }
 
@@ -92,7 +92,7 @@ pub fn set_size(L: *zlua.Lua) i32 {
   return 0;
 }
 
-pub fn raise_to_top(L: *zlua.Lua) i32 {
+pub fn set_focused(L: *zlua.Lua) i32 {
   const nargs: i32 = L.getTop();
 
   if(nargs != 1) {
@@ -110,7 +110,7 @@ pub fn raise_to_top(L: *zlua.Lua) i32 {
     return 0;
   }
 
-  view.?.raiseToTop();
+  view.?.setFocused();
 
   return 0;
 }

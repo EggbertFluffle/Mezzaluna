@@ -16,6 +16,7 @@ pub fn spawn(L: *zlua.Lua) i32 {
   }
 
   L.checkType(1, .string);
+  std.log.debug("GOT HERE", .{});
 
   const cmd = L.toString(1) catch {
     L.raiseErrorStr("Lua error check your config", .{});
