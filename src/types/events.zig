@@ -41,12 +41,12 @@ pub fn put(self: *Events, key: []const u8, hook: *const Hook) !void {
 // TODO: figure out deletion
 // pub fn del(self: *Events, key: ???) !void {}
 
-pub fn exec(self: *Events, event: []const u8) void {
+pub fn exec(self: *Events, event: []const u8, args: anytype) void {
   if (self.events.get(event)) |e| {
     var node = e.first;
     while (node) |n| : (node = n.next) {
       const data: *Node = @fieldParentPtr("node", n);
-      data.hook.callback();
+      data.hook.callback(args);
 
       // FIXME: not sure why but for some reason our ll doesn't seem to want to
       // admit that there's nothing after the first node.

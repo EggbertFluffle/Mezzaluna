@@ -17,7 +17,13 @@ options: struct {
   lua_cb_ref_idx: i32,
 },
 
-pub fn callback(self: *const Hook) void {
+pub fn callback(self: *const Hook, args: anytype) void {
+  const ArgsType = @TypeOf(args);
+  const args_type_info = @typeInfo(ArgsType);
+  if (args_type_info != .@"struct") {
+    @compileError("expected tuple or struct argument, found " ++ @typeName(ArgsType));
+  }
+
   const t = Lua.state.rawGetIndex(zlua.registry_index, self.options.lua_cb_ref_idx);
   if (t != zlua.LuaType.function) {
     std.log.err("Failed to call hook, it doesn't have a callback.", .{});
@@ -25,8 +31,14 @@ pub fn callback(self: *const Hook) void {
     return;
   }
 
-  // TODO: we need to send some data along with the callback, this data will
-  // change based on the event which the user is hooking into
-  Lua.state.call(.{ .args = 0, .results = 0 });
+  // allow passing any arguments to the lua hook
+  var i: u8 = 0;
+  inline for (args, 1..) |field, k| {
+    try Lua.state.pushAny(field);
+    i = k;
+  }
+
+  Lua.state.protectedCall(.{ .args = i }) catch {
+  };
   Lua.state.pop(-1);
 }
