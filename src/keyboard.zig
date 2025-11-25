@@ -6,7 +6,7 @@ const Keyboard = @This();
 const std = @import("std");
 const gpa = std.heap.c_allocator;
 const server = &@import("main.zig").server;
-const Keymap = @import("keymap.zig");
+const Keymap = @import("types/keymap.zig");
 const Utils = @import("utils.zig");
 
 const wl = @import("wayland").server.wl;
@@ -80,10 +80,10 @@ fn handleKey(_: *wl.Listener(*wlr.Keyboard.event.Key), event: *wlr.Keyboard.even
   if (server.seat.keyboard_group.keyboard.xkb_state) |xkb_state| {
     for (xkb_state.keyGetSyms(keycode)) |sym| {
       if (server.keymaps.get(Keymap.hash(modifiers, sym))) |map| {
-        if (event.state == .pressed and map.lua_press_ref_idx > 0) {
+        if (event.state == .pressed and map.options.lua_press_ref_idx > 0) {
           map.callback(false);
           handled = true;
-        } else if (event.state == .released and map.lua_release_ref_idx > 0) {
+        } else if (event.state == .released and map.options.lua_release_ref_idx > 0) {
           map.callback(true);
           handled = true;
         }

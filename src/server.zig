@@ -11,7 +11,9 @@ const Keyboard = @import("keyboard.zig");
 const Output = @import("output.zig");
 const View = @import("view.zig");
 const Utils = @import("utils.zig");
-const Keymap = @import("keymap.zig");
+const Keymap = @import("types/keymap.zig");
+const Hook = @import("types/hook.zig");
+const Events = @import("types/events.zig");
 
 const gpa = std.heap.c_allocator;
 const server = &@import("main.zig").server;
@@ -34,7 +36,11 @@ allocator: *wlr.Allocator,
 root: Root,
 seat: Seat,
 cursor: Cursor,
+
+// lua data
 keymaps: std.AutoHashMap(u64, Keymap),
+hooks: std.ArrayList(*Hook),
+events: Events,
 
 // Backend listeners
 new_input: wl.Listener(*wlr.InputDevice) = .init(handleNewInput),
@@ -90,6 +96,8 @@ pub fn init(self: *Server) void {
     .seat = undefined,
     .cursor = undefined,
     .keymaps = .init(gpa),
+    .hooks = try .initCapacity(gpa, 10), // TODO: choose how many slots to start with
+    .events = try .init(gpa),
   };
 
   self.renderer.initServer(wl_server) catch {

@@ -113,6 +113,8 @@ fn handleMap(listener: *wl.Listener(void)) void {
   const view: *View = @fieldParentPtr("map", listener);
   std.log.debug("Mapping view '{s}'", .{view.xdg_toplevel.title orelse "(unnamed)"});
 
+  server.events.exec("ViewMapPre");
+
   view.xdg_toplevel.events.request_fullscreen.add(&view.request_fullscreen);
   view.xdg_toplevel.events.request_move.add(&view.request_move);
   view.xdg_toplevel.events.request_resize.add(&view.request_resize);
@@ -134,6 +136,8 @@ fn handleMap(listener: *wl.Listener(void)) void {
   // Here is where we should tile and set size
 
   view.mapped = true;
+
+  server.events.exec("ViewMapPost");
 }
 
 fn handleUnmap(listener: *wl.Listener(void)) void {
@@ -251,20 +255,12 @@ fn handleRequestMinimize(
   std.log.err("Unimplemented request minimize", .{});
 }
 
-fn handleRequestMaximize(
-  listener: *wl.Listener(void)
-) void {
-  const view: *View = @fieldParentPtr("request_fullscreen", listener);
-  _ = view;
-  std.log.err("Unimplemented request maximize", .{});
-}
-
 fn handleSetAppId(
   listener: *wl.Listener(void)
 ) void {
   const view: *View = @fieldParentPtr("set_app_id", listener);
   _ = view;
-  std.log.err("Unimplemented request maximize", .{});
+  std.log.err("Unimplemented set appid", .{});
 }
 
 fn handleSetTitle(

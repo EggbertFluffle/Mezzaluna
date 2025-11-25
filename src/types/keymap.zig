@@ -8,20 +8,20 @@ const xkb = @import("xkbcommon");
 const wlr = @import("wlroots");
 const zlua = @import("zlua");
 
-const Lua = &@import("main.zig").lua;
+const Lua = &@import("../main.zig").lua;
 
 modifier: wlr.Keyboard.ModifierMask,
 keycode: xkb.Keysym,
-/// This is the location of the on press lua function in the lua registry
-lua_press_ref_idx: i32,
-/// This is the location of the on release lua function in the lua registry
-lua_release_ref_idx: i32,
 options: struct {
   repeat: bool,
+  /// This is the location of the on press lua function in the lua registry
+  lua_press_ref_idx: i32,
+  /// This is the location of the on release lua function in the lua registry
+  lua_release_ref_idx: i32,
 },
 
 pub fn callback(self: *const Keymap, release: bool) void {
-  const lua_ref_idx = if(release) self.lua_release_ref_idx else self.lua_press_ref_idx;
+  const lua_ref_idx = if (release) self.options.lua_release_ref_idx else self.options.lua_press_ref_idx;
 
   const t = Lua.state.rawGetIndex(zlua.registry_index, lua_ref_idx);
   if (t != zlua.LuaType.function) {

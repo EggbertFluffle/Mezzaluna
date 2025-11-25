@@ -1,7 +1,7 @@
 const Api = @This();
 
 const std = @import("std");
-const Keymap = @import("../keymap.zig");
+const Keymap = @import("../types/keymap.zig");
 
 const zlua = @import("zlua");
 const xkb = @import("xkbcommon");
@@ -14,22 +14,10 @@ fn parse_modkeys(modStr: []const u8) wlr.Keyboard.ModifierMask {
   var it = std.mem.splitScalar(u8, modStr, '|');
   var modifiers = wlr.Keyboard.ModifierMask{};
   while (it.next()) |m| {
-    if (std.mem.eql(u8, m, "shift")) {
-      modifiers.shift = true;
-    } else if (std.mem.eql(u8, m, "caps")) {
-      modifiers.caps = true;
-    } else if (std.mem.eql(u8, m, "ctrl")) {
-      modifiers.ctrl = true;
-    } else if (std.mem.eql(u8, m, "alt")) {
-      modifiers.alt = true;
-    } else if (std.mem.eql(u8, m, "mod2")) {
-      modifiers.mod2 = true;
-    } else if (std.mem.eql(u8, m, "mod3")) {
-      modifiers.mod3 = true;
-    } else if (std.mem.eql(u8, m, "logo")) {
-      modifiers.logo = true;
-    } else if (std.mem.eql(u8, m, "mod5")) {
-      modifiers.mod5 = true;
+    inline for (std.meta.fields(@TypeOf(modifiers))) |f| {
+      if (f.type == bool and std.mem.eql(u8, m, f.name)) {
+        @field(modifiers, f.name) = true;
+      }
     }
   }
 
@@ -43,9 +31,7 @@ pub fn add_keymap(L: *zlua.Lua) i32 {
   L.checkType(3, .table);
 
   var keymap: Keymap = undefined;
-  keymap.options = .{
-    .repeat = true,
-  };
+  keymap.options.repeat = true;
 
   const mod = L.toString(1) catch {
     L.raiseErrorStr("Lua error check your config", .{});
@@ -62,7 +48,7 @@ pub fn add_keymap(L: *zlua.Lua) i32 {
   _ = L.pushString("press");
   _ = L.getTable(3);
   if (L.isFunction(-1)) {
-    keymap.lua_press_ref_idx = L.ref(zlua.registry_index) catch {
+    keymap.options.lua_press_ref_idx = L.ref(zlua.registry_index) catch {
       L.raiseErrorStr("Lua error check your config", .{});
       return 0;
     };
@@ -71,7 +57,7 @@ pub fn add_keymap(L: *zlua.Lua) i32 {
   _ = L.pushString("release");
   _ = L.getTable(3);
   if (L.isFunction(-1)) {
-    keymap.lua_release_ref_idx = L.ref(zlua.registry_index) catch {
+    keymap.options.lua_release_ref_idx = L.ref(zlua.registry_index) catch {
       L.raiseErrorStr("Lua error check your config", .{});
       return 0;
     };

@@ -57,3 +57,9 @@ end
 --     print("goodbye from my keymap")
 --   end
 -- })
+
+mez.hook.add("ViewMapPre", {
+  callback = function()
+    print("hello world")
+  end
+})
