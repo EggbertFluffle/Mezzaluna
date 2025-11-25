@@ -107,23 +107,3 @@ pub fn viewAt(self: *Root, lx: f64, ly: f64) ?ViewAtResult {
   }
   return null;
 }
-
-pub fn focusView(_: *Root, view: *View) void {
-  if (server.seat.wlr_seat.keyboard_state.focused_surface) |previous_surface| {
-    if (previous_surface == view.xdg_toplevel.base.surface) return;
-    if (wlr.XdgSurface.tryFromWlrSurface(previous_surface)) |xdg_surface| {
-      _ = xdg_surface.role_data.toplevel.?.setActivated(false);
-    }
-  }
-
-  view.scene_tree.node.raiseToTop();
-
-  _ = view.xdg_toplevel.setActivated(true);
-
-  const wlr_keyboard = server.seat.wlr_seat.getKeyboard() orelse return;
-  server.seat.wlr_seat.keyboardNotifyEnter(
-    view.xdg_toplevel.base.surface,
-    wlr_keyboard.keycodes[0..wlr_keyboard.num_keycodes],
-    &wlr_keyboard.modifiers,
-  );
-}

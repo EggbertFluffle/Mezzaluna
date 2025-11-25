@@ -88,6 +88,24 @@ pub fn deinit(self: *View) void {
 }
 
 pub fn setFocused(self: *View) void {
+  if (server.seat.wlr_seat.keyboard_state.focused_surface) |previous_surface| {
+    if (previous_surface == self.xdg_toplevel.base.surface) return;
+    if (wlr.XdgSurface.tryFromWlrSurface(previous_surface)) |xdg_surface| {
+      _ = xdg_surface.role_data.toplevel.?.setActivated(false);
+    }
+  }
+
+  self.raiseToTop();
+
+  _ = self.xdg_toplevel.setActivated(true);
+
+  const wlr_keyboard = server.seat.wlr_seat.getKeyboard() orelse return;
+  server.seat.wlr_seat.keyboardNotifyEnter(
+    self.xdg_toplevel.base.surface,
+    wlr_keyboard.keycodes[0..wlr_keyboard.num_keycodes],
+    &wlr_keyboard.modifiers,
+  );
+
   if(server.seat.focused_view) |prev_view| {
     prev_view.focused = false;
   }
