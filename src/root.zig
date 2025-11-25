@@ -1,3 +1,6 @@
+/// The root of Mezzaluna is, you guessed it, the root of many of the systems mez needs:
+///   - Managing outputs
+///   -
 const Root = @This();
 
 const std = @import("std");
@@ -18,8 +21,6 @@ scene_output_layout: *wlr.SceneOutputLayout,
 
 output_layout: *wlr.OutputLayout,
 
-views: std.HashMap(u64, *View, std.hash_map.AutoContext(u64), 80),
-
 pub fn init(self: *Root) void {
   std.log.info("Creating root of mezzaluna\n", .{});
 
@@ -36,20 +37,34 @@ pub fn init(self: *Root) void {
     .output_layout = output_layout,
     .xdg_toplevel_decoration_manager = try wlr.XdgDecorationManagerV1.create(server.wl_server),
     .scene_output_layout = try scene.attachOutputLayout(output_layout),
-    .views = .init(gpa)
   };
 }
 
 pub fn deinit(self: *Root) void {
-  var views_it = self.views.iterator();
-  while(views_it.next()) |entry| {
-    entry.value_ptr.*.deinit();
-  }
+  var it = self.scene.tree.children.iterator(.forward);
 
-  self.views.deinit();
+  while(it.next()) |node| {
+    if(node.data == null) continue;
+
+    const view: *View = @ptrCast(@alignCast(node.data.?));
+    view.deinit();
+  }
 
   self.output_layout.destroy();
   self.scene.tree.node.destroy();
+}
+
+pub fn viewById(self: *Root, id: u64) ?*View {
+  var it = self.scene.tree.children.iterator(.forward);
+
+  while(it.next()) |node| {
+    if(node.data == null) continue;
+
+    const view: *View = @as(*View, @ptrCast(@alignCast(node.data.?)));
+    if(view.id == id) return view;
+  }
+
+  return null;
 }
 
 pub fn addOutput(self: *Root, new_output: *Output) void {

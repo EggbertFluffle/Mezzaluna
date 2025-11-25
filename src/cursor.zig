@@ -75,7 +75,7 @@ pub fn processCursorMotion(self: *Cursor, time_msec: u32) void {
   switch (self.mode) {
     .passthrough => {
       if (server.root.viewAt(self.wlr_cursor.x, self.wlr_cursor.y)) |res| {
-        server.seat.focusView(res.view);
+        res.view.setFocused();
 
         server.seat.wlr_seat.pointerNotifyEnter(res.surface, res.sx, res.sy);
         server.seat.wlr_seat.pointerNotifyMotion(time_msec, res.sx, res.sy);
@@ -134,8 +134,7 @@ fn handleButton(
   _ = server.seat.wlr_seat.pointerNotifyButton(event.time_msec, event.button, event.state);
 
   if (server.seat.focused_view) |view| {
-    server.seat.focusView(view);
-    server.root.focusView(view);
+    view.setFocused();
   }
 
   switch (event.state) {
