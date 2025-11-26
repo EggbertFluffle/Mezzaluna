@@ -157,6 +157,8 @@ fn handleUnmap(listener: *wl.Listener(void)) void {
   const view: *View = @fieldParentPtr("unmap", listener);
   std.log.debug("Unmapping view '{s}'", .{view.xdg_toplevel.title orelse "(unnamed)"});
 
+  server.events.exec("ViewUnmapPre", .{view.id});
+
   view.request_fullscreen.link.remove();
   view.request_move.link.remove();
   view.request_resize.link.remove();
@@ -167,6 +169,8 @@ fn handleUnmap(listener: *wl.Listener(void)) void {
   // view.ack_configure.link.remove();
 
   view.mapped = false;
+
+  server.events.exec("ViewUnmapPost", .{view.id});
 }
 
 fn handleDestroy(listener: *wl.Listener(void)) void {

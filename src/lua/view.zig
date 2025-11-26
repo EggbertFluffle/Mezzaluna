@@ -21,7 +21,7 @@ pub fn get_all_ids(L: *zlua.Lua) i32 {
 
     L.pushInteger(@intCast(index));
     L.pushInteger(@intCast(view.id));
-    L.setTable(1);
+    L.setTable(-3);
   }
 
   return 1;
@@ -39,8 +39,6 @@ pub fn get_focused_id(L: *zlua.Lua) i32 {
 pub fn set_position(L: *zlua.Lua) i32 {
   const nargs: i32 = L.getTop();
 
-  std.log.debug("Starting view reposition", .{});
-
   if (nargs != 3) {
     L.raiseErrorStr("Expected 3 arguments, found {d}", .{nargs});
     return 0;
@@ -50,9 +48,9 @@ pub fn set_position(L: *zlua.Lua) i32 {
     L.checkType(@intCast(i), .number);
   }
 
-  const view_id: u64 = @as(u64, @intCast(L.toInteger(1) catch unreachable));
-  const x: i32 = @as(i32, @intCast(L.toInteger(2) catch unreachable));
-  const y: i32 = @as(i32, @intCast(L.toInteger(3) catch unreachable));
+  const view_id: u64 = @as(u64, @intCast(L.toInteger(1) catch { L.raiseErrorStr("Arg is not convertable to an int", .{}); }));
+  const x: i32 = @as(i32, @intFromFloat(L.toNumber(2) catch { L.raiseErrorStr("Arg is not convertable to an int", .{}); }));
+  const y: i32 = @as(i32, @intFromFloat(L.toNumber(3) catch { L.raiseErrorStr("Arg is not convertable to an int", .{}); }));
 
   const view = server.root.viewById(view_id);
   if(view == null) {
@@ -77,9 +75,9 @@ pub fn set_size(L: *zlua.Lua) i32 {
     L.checkType(@intCast(i), .number);
   }
 
-  const view_id: u64 = @as(u64, @intCast(L.toInteger(1) catch unreachable));
-  const width: i32 = @as(i32, @intCast(L.toInteger(2) catch unreachable));
-  const height: i32 = @as(i32, @intCast(L.toInteger(3) catch unreachable));
+  const view_id: u64 = @as(u64, @intCast(L.toInteger(1) catch { L.raiseErrorStr("Arg is not convertable to an int", .{}); }));
+  const width: i32 = @as(i32, @intFromFloat(L.toNumber(2) catch { L.raiseErrorStr("Arg is not convertable to an int", .{}); }));
+  const height: i32 = @as(i32, @intFromFloat(L.toNumber(3) catch { L.raiseErrorStr("Arg is not convertable to an int", .{}); }));
 
   const view = server.root.viewById(view_id);
   if(view == null) {
@@ -102,7 +100,7 @@ pub fn set_focused(L: *zlua.Lua) i32 {
 
   L.checkType(1, .number);
 
-  const view_id: u64 = @intCast(L.toInteger(1) catch unreachable);
+  const view_id: u64 = @as(u64, @intCast(L.toInteger(1) catch { L.raiseErrorStr("Arg is not convertable to an int", .{}); }));
 
   const view = server.root.viewById(view_id);
   if(view == null) {
@@ -111,6 +109,39 @@ pub fn set_focused(L: *zlua.Lua) i32 {
   }
 
   view.?.setFocused();
+
+  return 0;
+}
+
+pub fn get_details(L: *zlua.Lua) i32 {
+  const nargs: i32 = L.getTop();
+
+  if(nargs != 1) {
+    L.raiseErrorStr("Expected 1 arguments, found {d}", .{nargs});
+    return 0;
+  }
+
+  L.checkType(1, .number);
+
+  const view_id: u64 = @as(u64, @intCast(L.toInteger(1) catch { L.raiseErrorStr("Arg is not convertable to an int", .{}); }));
+
+  if(server.root.viewById(view_id)) |view| {
+    L.newTable();
+
+    if(view.xdg_toplevel.title) |detail| {
+      _ = L.pushString("title");
+      _ = L.pushString(std.mem.span(detail));
+      L.setTable(-3);
+    }
+
+    if(view.xdg_toplevel.app_id) |detail| {
+      _ = L.pushString("app_id");
+      _ = L.pushString(std.mem.span(detail));
+      L.setTable(-3);
+    }
+
+    return 1;
+  }
 
   return 0;
 }

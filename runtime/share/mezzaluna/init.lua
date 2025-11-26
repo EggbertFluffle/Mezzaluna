@@ -10,16 +10,11 @@ end
 mez.path.config = mez.fs.joinpath(env_conf, "mez", "init.lua")
 package.path = package.path..";"..mez.fs.joinpath(env_conf, "mez", "lua", "?.lua")
 
--- this is an example
-mez.input.add_keymap("alt", "a", {
-  press = function()
-    print("hello from my keymap")
-  end
-})
-
 mez.input.add_keymap("alt", "Return", {
   press = function()
-    mez.api.spawn("foot")
+    -- foot doesnt resize on uneven columns
+    -- this means alacritty is just better (period)
+    mez.api.spawn("alacritty")
   end,
 })
 
@@ -36,35 +31,27 @@ mez.input.add_keymap("alt", "q", {
 })
 
 mez.input.add_keymap("alt", "v", {
-	press = function ()
-		local view = mez.view.get_focused_id()
-		mez.view.set_position(view, 100, 100)
-		mez.view.set_size(view, 100, 100)
-	end
-})
+  press = function ()
+    local id = mez.view.get_focused_id()
 
-mez.input.add_keymap("alt", "v", {
-	press = function ()
-		local view = mez.view.get_focused_id()
-		mez.view.set_position(view, 100, 100)
-		mez.view.set_size(view, 100, 100)
-	end
+    local details = mez.view.get_details(id);
+    print(details.title);
+    print(details.app_id);
+  end
 })
 
 mez.input.add_keymap("alt", "Tab", {
-	press = function ()
-		print("alt+tab")
+  press = function ()
+    local focused = mez.view.get_focused_id()
+    local all = mez.view.get_all_ids()
 
-		local focused = mez.view.get_focused_id()
-		local all = mez.view.get_all_ids()
-
-		for _, id in ipairs(all) do
-			if id ~= focused then
-				mez.view.set_focused(id)
-				return
-			end
-		end
-	end
+    for _, id in ipairs(all) do
+      if id ~= focused then
+        mez.view.set_focused(id)
+        return
+      end
+    end
+  end
 })
 
 for i = 1, 12 do
@@ -73,9 +60,22 @@ for i = 1, 12 do
   })
 end
 
+mez.input.add_keymap("alt", "t", {
+  press = function() tiler() end
+})
+
+local tiler = function ()
+  local all = mez.view.get_all_ids()
+
+  for i, id in ipairs(all) do
+    mez.view.set_position(id, (1920 / #all) * (i - 1), 0)
+    mez.view.set_size(id, 1920 / #all, 1080)
+  end
+end
+
 mez.hook.add("ViewMapPre", {
   callback = function(v)
-    mez.view.set_size(v, 1000, 1000)
-	mez.view.set_focused(v)
+    tiler()
+    mez.view.set_focused(v)
   end
 })

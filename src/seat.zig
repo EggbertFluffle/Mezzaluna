@@ -66,7 +66,7 @@ pub fn deinit(self: *Seat) void {
 }
 
 pub fn focusOutput(self: *Seat, output: *Output) void {
-  if(self.focused_output) |prev_output| {
+  if(server.seat.focused_output) |prev_output| {
     prev_output.focused = false;
   }
 

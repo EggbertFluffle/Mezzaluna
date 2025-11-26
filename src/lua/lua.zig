@@ -10,6 +10,7 @@ const Input = @import("input.zig");
 const Api = @import("api.zig");
 const Hook = @import("hook.zig");
 const View = @import("view.zig");
+const Output = @import("output.zig");
 
 const gpa = std.heap.c_allocator;
 
@@ -80,6 +81,11 @@ pub fn init(self: *Lua) !void {
       const view_funcs = zlua.fnRegsFromType(View);
       self.state.newLib(view_funcs);
       self.state.setField(-2, "view");
+    }
+    {
+      const output_funcs = zlua.fnRegsFromType(Output);
+      self.state.newLib(output_funcs);
+      self.state.setField(-2, "output");
     }
   }
 

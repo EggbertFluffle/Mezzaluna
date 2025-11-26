@@ -67,11 +67,17 @@ pub fn viewById(self: *Root, id: u64) ?*View {
   return null;
 }
 
-pub fn addOutput(self: *Root, new_output: *Output) void {
-  errdefer Utils.oomPanic();
-  const layout_output = try self.output_layout.addAuto(new_output.wlr_output);
-  self.scene_output_layout.addOutput(layout_output, new_output.scene_output);
-  server.seat.focusOutput(new_output);
+pub fn outputById(self: *Root, id: u64) ?*Output {
+  var it = self.scene.outputs.iterator(.forward);
+
+  while(it.next()) |scene_output| {
+    if(scene_output.output.data == null) continue;
+
+    const output: *Output = @as(*Output, @ptrCast(@alignCast(scene_output.output.data.?)));
+    if(output.id == id) return output;
+  }
+
+  return null;
 }
 
 const ViewAtResult = struct {

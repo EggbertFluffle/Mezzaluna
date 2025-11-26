@@ -11,6 +11,7 @@ const gpa = std.heap.c_allocator;
 const server = &@import("main.zig").server;
 
 focused: bool,
+id: u64,
 
 wlr_output: *wlr.Output,
 state: wlr.Output.State,
@@ -24,61 +25,73 @@ destroy: wl.Listener(*wlr.Output) = .init(handleDestroy),
 pub fn init(wlr_output: *wlr.Output) ?*Output {
   errdefer Utils.oomPanic();
 
-  const output = try gpa.create(Output);
+  const self = try gpa.create(Output);
 
-  output.* = .{
+  self.* = .{
     .focused = false,
+    .id = @intFromPtr(wlr_output),
     .wlr_output = wlr_output,
     .scene_output = try server.root.scene.createSceneOutput(wlr_output),
     .state = wlr.Output.State.init()
   };
 
-  wlr_output.events.frame.add(&output.frame);
-  wlr_output.events.request_state.add(&output.request_state);
-  wlr_output.events.destroy.add(&output.destroy);
+  wlr_output.events.frame.add(&self.frame);
+  wlr_output.events.request_state.add(&self.request_state);
+  wlr_output.events.destroy.add(&self.destroy);
 
-  errdefer deinit(output);
+  errdefer deinit(self);
 
   if(!wlr_output.initRender(server.allocator, server.renderer)) {
     std.log.err("Unable to start output {s}", .{wlr_output.name});
     return null;
   }
 
-  output.state.setEnabled(true);
+  self.state.setEnabled(true);
 
   if (wlr_output.preferredMode()) |mode| {
-    output.state.setMode(mode);
+    self.state.setMode(mode);
   }
 
-  if(!wlr_output.commitState(&output.state)) {
+  if(!wlr_output.commitState(&self.state)) {
     std.log.err("Unable to commit state to output {s}", .{wlr_output.name});
     return null;
   }
 
-  server.root.addOutput(output);
+  const layout_output = try server.root.output_layout.addAuto(self.wlr_output);
+  server.root.scene_output_layout.addOutput(layout_output, self.scene_output);
+  self.setFocused();
 
-  return output;
+  wlr_output.data = self;
+
+  return self;
 }
 
-pub fn deinit(output: *Output) void {
-  output.frame.link.remove();
-  output.request_state.link.remove();
-  output.destroy.remove();
+pub fn deinit(self: *Output) void {
+  self.frame.link.remove();
+  self.request_state.link.remove();
+  self.destroy.link.remove();
 
-  output.state.finish();
+  self.state.finish();
 
-  output.wlr_output.destroy();
+  self.wlr_output.destroy();
 
-  gpa.free(output);
+  gpa.destroy(self);
 }
 
+pub fn setFocused(self: *Output) void {
+  if(server.seat.focused_output) |prev_output| {
+    prev_output.focused = false;
+  }
+
+  server.seat.focused_output = self;
+  self.focused = true;
+}
 
 // --------- WlrOutput Event Handlers ---------
 fn handleRequestState(
   listener: *wl.Listener(*wlr.Output.event.RequestState),
   event: *wlr.Output.event.RequestState,
 ) void {
-  std.log.debug("Handling request state", .{});
   const output: *Output = @fieldParentPtr("request_state", listener);
 
   if (!output.wlr_output.commitState(event.state)) {
