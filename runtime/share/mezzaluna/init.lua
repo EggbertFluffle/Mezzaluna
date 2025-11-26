@@ -32,11 +32,12 @@ mez.input.add_keymap("alt", "q", {
 
 mez.input.add_keymap("alt", "v", {
   press = function ()
-    local id = mez.view.get_focused_id()
+    local id = mez.output.get_focused_id()
 
-    local details = mez.view.get_details(id);
-    print(details.title);
-    print(details.app_id);
+    print(mez.output.get_name(id))
+    print(mez.output.get_serial(id))
+    print(mez.output.get_model(id))
+    print(mez.output.get_make(id))
   end
 })
 

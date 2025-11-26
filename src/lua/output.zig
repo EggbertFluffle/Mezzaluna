@@ -86,7 +86,8 @@ pub fn get_resolution(L: *zlua.Lua) i32 {
   return 0;
 }
 
-pub fn get_details(L: *zlua.Lua) i32 {
+// Return the serial of the output
+pub fn get_serial(L: *zlua.Lua) i32 {
   const nargs: i32 = L.getTop();
 
   if(nargs != 1) {
@@ -95,41 +96,103 @@ pub fn get_details(L: *zlua.Lua) i32 {
 
   L.checkType(1, .number);
 
-  const output_id: u64 = @as(u64, @intCast(L.toInteger(1) catch {
-    L.raiseErrorStr("Arg is not convertable to an int", .{});
-  }));
+  errdefer L.raiseErrorStr("Arg is not convertable to an int", .{});
+  const output_id: u64 = @intCast(try L.toInteger(1));
 
   if(server.root.outputById(output_id)) |output| {
-    L.newTable();
+    if(output.wlr_output.serial == null) return 0;
 
-    if(output.wlr_output.description) |detail| {
-      _ = L.pushString("description");
-      _ = L.pushString(std.mem.span(detail));
-      L.setTable(-3);
-    }
+    _ = L.pushString(std.mem.span(output.wlr_output.serial.?));
+    return 1;
+  }
 
-    if(output.wlr_output.model) |detail| {
-      _ = L.pushString("model");
-      _ = L.pushString(std.mem.span(detail));
-      L.setTable(-3);
-    }
+  return 0;
+}
 
-    if(output.wlr_output.make) |detail| {
-      _ = L.pushString("make");
-      _ = L.pushString(std.mem.span(detail));
-      L.setTable(-3);
-    }
+// Return the make of the output
+pub fn get_make(L: *zlua.Lua) i32 {
+  const nargs: i32 = L.getTop();
 
-    _ = L.pushString("name");
+  if(nargs != 1) {
+    L.raiseErrorStr("Expected 1 argument, found", .{nargs});
+  }
+
+  L.checkType(1, .number);
+
+  errdefer L.raiseErrorStr("Arg is not convertable to an int", .{});
+  const output_id: u64 = @intCast(try L.toInteger(1));
+
+  if(server.root.outputById(output_id)) |output| {
+    if(output.wlr_output.make == null) return 0;
+
+    _ = L.pushString(std.mem.span(output.wlr_output.make.?));
+    return 1;
+  }
+
+  return 0;
+}
+
+// Return the model of the output
+pub fn get_model(L: *zlua.Lua) i32 {
+  const nargs: i32 = L.getTop();
+
+  if(nargs != 1) {
+    L.raiseErrorStr("Expected 1 argument, found", .{nargs});
+  }
+
+  L.checkType(1, .number);
+
+  errdefer L.raiseErrorStr("Arg is not convertable to an int", .{});
+  const output_id: u64 = @intCast(try L.toInteger(1));
+
+  if(server.root.outputById(output_id)) |output| {
+    if(output.wlr_output.model == null) return 0;
+
+    _ = L.pushString(std.mem.span(output.wlr_output.model.?));
+    return 1;
+  }
+
+  return 0;
+}
+
+// Return the description of the output
+pub fn get_description(L: *zlua.Lua) i32 {
+  const nargs: i32 = L.getTop();
+
+  if(nargs != 1) {
+    L.raiseErrorStr("Expected 1 argument, found", .{nargs});
+  }
+
+  L.checkType(1, .number);
+
+  errdefer L.raiseErrorStr("Arg is not convertable to an int", .{});
+  const output_id: u64 = @intCast(try L.toInteger(1));
+
+  if(server.root.outputById(output_id)) |output| {
+    if(output.wlr_output.description == null) return 0;
+
+    _ = L.pushString(std.mem.span(output.wlr_output.description.?));
+    return 1;
+  }
+
+  return 0;
+}
+
+// Return the name of the output
+pub fn get_name(L: *zlua.Lua) i32 {
+  const nargs: i32 = L.getTop();
+
+  if(nargs != 1) {
+    L.raiseErrorStr("Expected 1 argument, found", .{nargs});
+  }
+
+  L.checkType(1, .number);
+
+  errdefer L.raiseErrorStr("Arg is not convertable to an int", .{});
+  const output_id: u64 = @intCast(try L.toInteger(1));
+
+  if(server.root.outputById(output_id)) |output| {
     _ = L.pushString(std.mem.span(output.wlr_output.name));
-    L.setTable(-3);
-
-    if(output.wlr_output.serial) |detail| {
-      _ = L.pushString("serial");
-      _ = L.pushString(std.mem.span(detail));
-      L.setTable(-3);
-    }
-
     return 1;
   }
 
