@@ -112,6 +112,14 @@ pub fn setFocused(self: *View) void {
   self.focused = true;
 }
 
+pub fn close(self: *View) void {
+  if(self.focused) {
+    server.seat.focused_view = null;
+  }
+
+  self.xdg_toplevel.sendClose();
+}
+
 pub fn setPosition(self: *View, x: i32, y: i32) void {
   self.scene_tree.node.setPosition(x, y);
 }

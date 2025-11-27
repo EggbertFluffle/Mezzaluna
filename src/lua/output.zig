@@ -1,12 +1,14 @@
 const std = @import("std");
 const zlua = @import("zlua");
-const wlr = @import("wlroots");
 
 const Output = @import("../output.zig");
 
-const gpa = std.heap.c_allocator;
 const server = &@import("../main.zig").server;
 
+// ---@alias output_id integer
+
+// ---Get the ids for all available outputs
+// ---@return output_id[]?
 pub fn get_all_ids(L: *zlua.Lua) i32 {
   var it = server.root.scene.outputs.iterator(.forward);
   var index: usize = 1;
@@ -26,175 +28,155 @@ pub fn get_all_ids(L: *zlua.Lua) i32 {
   return 1;
 }
 
+// ---Get the id for the focused output
+// ---@return output_id?
 pub fn get_focused_id(L: *zlua.Lua) i32 {
   if(server.seat.focused_output) |output| {
     L.pushInteger(@intCast(output.id));
     return 1;
   }
 
-  return 0;
+  L.pushNil();
+  return 1;
 }
 
+// ---Get refresh rate for the output
+// ---@param output_id output_id 0 maps to focused output
+// ---@return integer?
 pub fn get_rate(L: *zlua.Lua) i32 {
-  const nargs: i32 = L.getTop();
+  const output_id: u64 = @intCast(L.checkInteger(1));
 
-  if(nargs != 1) {
-    L.raiseErrorStr("Expected 1 argument, found", .{nargs});
-  }
-
-  L.checkType(1, .number);
-
-  const output_id: u64 = @as(u64, @intCast(L.toInteger(1) catch {
-    L.raiseErrorStr("Arg is not convertable to an int", .{});
-  }));
-
-  if(server.root.outputById(output_id)) |output| {
-    L.pushInteger(@intCast(output.wlr_output.refresh));
+  const output: ?*Output = if (output_id == 0) server.seat.focused_output else server.root.outputById(output_id);
+  if(output) |o| {
+    L.pushInteger(@intCast(o.wlr_output.refresh));
     return 1;
   }
 
-  return 0;
+  L.pushNil();
+  return 1;
 }
 
+// ---Get resolution in pixels of the output
+// ---@param output_id output_id 0 maps to focused output
+// ---@return { width: integer, height: integer }?
 pub fn get_resolution(L: *zlua.Lua) i32 {
-  const nargs: i32 = L.getTop();
+  const output_id: u64 = @intCast(L.checkInteger(1));
 
-  if(nargs != 1) {
-    L.raiseErrorStr("Expected 1 argument, found", .{nargs});
-  }
-
-  L.checkType(1, .number);
-
-  const output_id: u64 = @as(u64, @intCast(L.toInteger(1) catch {
-    L.raiseErrorStr("Arg is not convertable to an int", .{});
-  }));
-
-  if(server.root.outputById(output_id)) |output| {
+  const output: ?*Output = if (output_id == 0) server.seat.focused_output else server.root.outputById(output_id);
+  if(output) |o| {
     L.newTable();
 
     _ = L.pushString("width");
-    L.pushInteger(@intCast(output.wlr_output.width));
+    L.pushInteger(@intCast(o.wlr_output.width));
     L.setTable(-3);
 
     _ = L.pushString("height");
-    L.pushInteger(@intCast(output.wlr_output.height));
+    L.pushInteger(@intCast(o.wlr_output.height));
     L.setTable(-3);
 
     return 1;
   }
 
-  return 0;
+  L.pushNil();
+  return 1;
 }
 
-// Return the serial of the output
+// ---Get the serial for the output
+// ---@param output_id output_id 0 maps to focused output
+// ---@return string?
 pub fn get_serial(L: *zlua.Lua) i32 {
-  const nargs: i32 = L.getTop();
+  const output_id: u64 = @intCast(L.checkInteger(1));
 
-  if(nargs != 1) {
-    L.raiseErrorStr("Expected 1 argument, found", .{nargs});
-  }
+  const output: ?*Output = if (output_id == 0) server.seat.focused_output else server.root.outputById(output_id);
+  if(output) |o| {
+    if(o.wlr_output.serial == null) {
+      L.pushNil();
+      return 1;
+    }
 
-  L.checkType(1, .number);
-
-  errdefer L.raiseErrorStr("Arg is not convertable to an int", .{});
-  const output_id: u64 = @intCast(try L.toInteger(1));
-
-  if(server.root.outputById(output_id)) |output| {
-    if(output.wlr_output.serial == null) return 0;
-
-    _ = L.pushString(std.mem.span(output.wlr_output.serial.?));
+    _ = L.pushString(std.mem.span(o.wlr_output.serial.?));
     return 1;
   }
 
-  return 0;
+  L.pushNil();
+  return 1;
 }
 
-// Return the make of the output
+// ---Get the make for the output
+// ---@param output_id output_id 0 maps to focused output
+// ---@return string?
 pub fn get_make(L: *zlua.Lua) i32 {
-  const nargs: i32 = L.getTop();
+  const output_id: u64 = @intCast(L.checkInteger(1));
 
-  if(nargs != 1) {
-    L.raiseErrorStr("Expected 1 argument, found", .{nargs});
-  }
+  const output: ?*Output = if (output_id == 0) server.seat.focused_output else server.root.outputById(output_id);
+  if(output) |o| {
+    if(o.wlr_output.make == null) {
+      L.pushNil();
+      return 1;
+    }
 
-  L.checkType(1, .number);
-
-  errdefer L.raiseErrorStr("Arg is not convertable to an int", .{});
-  const output_id: u64 = @intCast(try L.toInteger(1));
-
-  if(server.root.outputById(output_id)) |output| {
-    if(output.wlr_output.make == null) return 0;
-
-    _ = L.pushString(std.mem.span(output.wlr_output.make.?));
+    _ = L.pushString(std.mem.span(o.wlr_output.make.?));
     return 1;
   }
 
-  return 0;
+  L.pushNil();
+  return 1;
 }
 
-// Return the model of the output
+// ---Get the model for the output
+// ---@param output_id output_id 0 maps to focused output
+// ---@return stirng?
 pub fn get_model(L: *zlua.Lua) i32 {
-  const nargs: i32 = L.getTop();
+  const output_id: u64 = @intCast(L.checkInteger(1));
 
-  if(nargs != 1) {
-    L.raiseErrorStr("Expected 1 argument, found", .{nargs});
-  }
+  const output: ?*Output = if (output_id == 0) server.seat.focused_output else server.root.outputById(output_id);
+  if(output) |o| {
+    if(o.wlr_output.model == null) {
+      L.pushNil();
+      return 1;
+    }
 
-  L.checkType(1, .number);
-
-  errdefer L.raiseErrorStr("Arg is not convertable to an int", .{});
-  const output_id: u64 = @intCast(try L.toInteger(1));
-
-  if(server.root.outputById(output_id)) |output| {
-    if(output.wlr_output.model == null) return 0;
-
-    _ = L.pushString(std.mem.span(output.wlr_output.model.?));
+    _ = L.pushString(std.mem.span(o.wlr_output.model.?));
     return 1;
   }
 
-  return 0;
+  L.pushNil();
+  return 1;
 }
 
-// Return the description of the output
+// ---Get the description for the output
+// ---@param output_id output_id 0 maps to focused output
+// ---@return stirng?
 pub fn get_description(L: *zlua.Lua) i32 {
-  const nargs: i32 = L.getTop();
+  const output_id: u64 = @intCast(L.checkInteger(1));
 
-  if(nargs != 1) {
-    L.raiseErrorStr("Expected 1 argument, found", .{nargs});
-  }
+  const output: ?*Output = if (output_id == 0) server.seat.focused_output else server.root.outputById(output_id);
+  if(output) |o| {
+    if(o.wlr_output.description == null) {
+      L.pushNil();
+      return 1;
+    }
 
-  L.checkType(1, .number);
-
-  errdefer L.raiseErrorStr("Arg is not convertable to an int", .{});
-  const output_id: u64 = @intCast(try L.toInteger(1));
-
-  if(server.root.outputById(output_id)) |output| {
-    if(output.wlr_output.description == null) return 0;
-
-    _ = L.pushString(std.mem.span(output.wlr_output.description.?));
+    _ = L.pushString(std.mem.span(o.wlr_output.description.?));
     return 1;
   }
 
-  return 0;
+  L.pushNil();
+  return 1;
 }
 
-// Return the name of the output
+// ---Get the description for the output
+// ---@param output_id output_id 0 maps to focused output
+// ---@return stirng
 pub fn get_name(L: *zlua.Lua) i32 {
-  const nargs: i32 = L.getTop();
+  const output_id: u64 = @intCast(L.checkInteger(1));
 
-  if(nargs != 1) {
-    L.raiseErrorStr("Expected 1 argument, found", .{nargs});
-  }
-
-  L.checkType(1, .number);
-
-  errdefer L.raiseErrorStr("Arg is not convertable to an int", .{});
-  const output_id: u64 = @intCast(try L.toInteger(1));
-
-  if(server.root.outputById(output_id)) |output| {
-    _ = L.pushString(std.mem.span(output.wlr_output.name));
+  const output: ?*Output = if (output_id == 0) server.seat.focused_output else server.root.outputById(output_id);
+  if(output) |o| {
+    _ = L.pushString(std.mem.span(o.wlr_output.name));
     return 1;
   }
 
-  return 0;
+  L.pushNil();
+  return 1;
 }

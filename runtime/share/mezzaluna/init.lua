@@ -20,7 +20,8 @@ mez.input.add_keymap("alt", "Return", {
 
 mez.input.add_keymap("alt", "c", {
   press = function ()
-    mez.api.close()
+    print("closing")
+    mez.view.close(0)
   end
 })
 
@@ -32,12 +33,7 @@ mez.input.add_keymap("alt", "q", {
 
 mez.input.add_keymap("alt", "v", {
   press = function ()
-    local id = mez.output.get_focused_id()
-
-    print(mez.output.get_name(id))
-    print(mez.output.get_serial(id))
-    print(mez.output.get_model(id))
-    print(mez.output.get_make(id))
+    print(mez.view.check())
   end
 })
 
@@ -61,18 +57,19 @@ for i = 1, 12 do
   })
 end
 
-mez.input.add_keymap("alt", "t", {
-  press = function() tiler() end
-})
-
 local tiler = function ()
+  local res = mez.output.get_resolution(mez.output.get_focused_id())
   local all = mez.view.get_all_ids()
 
   for i, id in ipairs(all) do
-    mez.view.set_position(id, (1920 / #all) * (i - 1), 0)
-    mez.view.set_size(id, 1920 / #all, 1080)
+    mez.view.set_position(id, (res.width/ #all) * (i - 1), 0)
+    mez.view.set_size(id, res.width / #all, res.height)
   end
 end
+
+mez.input.add_keymap("alt", "t", {
+  press = function() tiler() end
+})
 
 mez.hook.add("ViewMapPre", {
   callback = function(v)

@@ -19,7 +19,6 @@ pub fn spawn(L: *zlua.Lua) i32 {
 
   const cmd = L.toString(1) catch {
     L.raiseErrorStr("Lua error check your config", .{});
-    return 0;
   };
 
   var child = std.process.Child.init(&[_][]const u8{ "/bin/sh", "-c", cmd }, gpa);
@@ -31,27 +30,11 @@ pub fn spawn(L: *zlua.Lua) i32 {
   return 0;
 }
 
-pub fn close(L: *zlua.Lua) i32 {
-  const nargs: i32 = L.getTop();
-
-  if (nargs != 0) {
-    L.raiseErrorStr("Expected no arguments", .{});
-    return 0;
-  }
-
-  if(server.seat.focused_view) |view| {
-    view.xdg_toplevel.sendClose();
-  }
-
-  return 0;
-}
-
 pub fn exit(L: *zlua.Lua) i32 {
   const nargs: i32 = L.getTop();
 
   if (nargs != 0) {
     L.raiseErrorStr("Expected no arguments", .{});
-    return 0;
   }
 
   server.wl_server.terminate();
@@ -60,13 +43,21 @@ pub fn exit(L: *zlua.Lua) i32 {
 }
 
 pub fn change_vt(L: *zlua.Lua) i32 {
+  const nargs: i32 = L.getTop();
+
+  if (nargs != 1) {
+    L.raiseErrorStr("Expected 1 argument, found {d}", .{nargs});
+  }
+
   L.checkType(1, .number);
-  const f = L.toNumber(-1) catch unreachable;
-  const n: u32 = @intFromFloat(f);
+
+  const vt_num: c_uint = @intCast(L.toInteger(1) catch {
+      L.raiseErrorStr("Failed to switch vt", .{});
+  });
 
   if (server.session) |session| {
-    std.log.debug("Changing virtual terminal to {d}", .{ n });
-    wlr.Session.changeVt(session, n) catch {
+    std.log.debug("Changing virtual terminal to {d}", .{vt_num});
+    wlr.Session.changeVt(session, vt_num) catch {
       L.raiseErrorStr("Failed to switch vt", .{});
     };
   } else {

@@ -1,13 +1,14 @@
 const std = @import("std");
 const zlua = @import("zlua");
-const wlr = @import("wlroots");
 
 const View = @import("../view.zig");
 
-const gpa = std.heap.c_allocator;
-
 const server = &@import("../main.zig").server;
 
+// ---@alias view_id integer
+
+// ---Get the ids for all available views
+// ---@return view_id[]?
 pub fn get_all_ids(L: *zlua.Lua) i32 {
   var it = server.root.scene.tree.children.iterator(.forward);
   var index: usize = 1;
@@ -27,132 +28,126 @@ pub fn get_all_ids(L: *zlua.Lua) i32 {
   return 1;
 }
 
+pub fn check(L: *zlua.Lua) i32 {
+  L.pushNil();
+  return 1;
+}
+
+// ---Get the id for the focused view
+// ---@return view_id?
 pub fn get_focused_id(L: *zlua.Lua) i32 {
   if(server.seat.focused_view) |view| {
     L.pushInteger(@intCast(view.id));
     return 1;
   }
 
-  return 0;
+  L.pushNil();
+  return 1;
 }
 
+// ---Close the view with view_id
+// ---@param view_id view_id 0 maps to focused view
+pub fn close(L: *zlua.Lua) i32 {
+  const view_id: u64 = @intCast(L.checkInteger(1));
+
+  const view: ?*View = if (view_id == 0) server.seat.focused_view else server.root.viewById(view_id);
+  if(view) |v| {
+    v.close();
+  }
+
+  L.pushNil();
+  return 1;
+}
+
+// ---Position the view by it's top left corner
+// ---@param view_id view_id 0 maps to focused view
+// ---@param x number x position for view
+// ---@param y number y position for view
 pub fn set_position(L: *zlua.Lua) i32 {
-  const nargs: i32 = L.getTop();
+  const view_id: u64 = @intCast(L.checkInteger(1));
+  const x: i32 = @intFromFloat(@round(L.checkNumber(2)));
+  const y: i32 = @intFromFloat(@round(L.checkNumber(3)));
 
-  if (nargs != 3) {
-    L.raiseErrorStr("Expected 3 arguments, found {d}", .{nargs});
-    return 0;
+  const view: ?*View = if (view_id == 0) server.seat.focused_view else server.root.viewById(view_id);
+  if(view) |v| {
+    v.setPosition(x, y);
   }
 
-  for (1..@intCast(nargs + 1)) |i| {
-    L.checkType(@intCast(i), .number);
-  }
-
-  const view_id: u64 = @as(u64, @intCast(L.toInteger(1) catch { L.raiseErrorStr("Arg is not convertable to an int", .{}); }));
-  const x: i32 = @as(i32, @intFromFloat(L.toNumber(2) catch { L.raiseErrorStr("Arg is not convertable to an int", .{}); }));
-  const y: i32 = @as(i32, @intFromFloat(L.toNumber(3) catch { L.raiseErrorStr("Arg is not convertable to an int", .{}); }));
-
-  const view = server.root.viewById(view_id);
-  if(view == null) {
-    L.raiseErrorStr("View with id {d} does not exist", .{view_id});
-    return 0;
-  }
-
-  view.?.setPosition(x, y);
-
-  return 0;
+  L.pushNil();
+  return 1;
 }
 
+// ---Resize the view by it's top left corner
+// ---@param view_id view_id 0 maps to focused view
+// ---@param width number width for view
+// ---@param height number height for view
 pub fn set_size(L: *zlua.Lua) i32 {
-  const nargs: i32 = L.getTop();
+  const view_id: u64 = @intCast(L.checkInteger(1));
+  const width: i32 = @intFromFloat(@round(L.checkNumber(2)));
+  const height: i32 = @intFromFloat(@round(L.checkNumber(3)));
 
-  if (nargs != 3) {
-    L.raiseErrorStr("Expected 3 arguments, found {d}", .{nargs});
-    return 0;
+  const view: ?*View = if (view_id == 0) server.seat.focused_view else server.root.viewById(view_id);
+  if(view) |v| {
+    v.setSize(width, height);
   }
 
-  for (1..@intCast(nargs + 1)) |i| {
-    L.checkType(@intCast(i), .number);
-  }
-
-  const view_id: u64 = @as(u64, @intCast(L.toInteger(1) catch { L.raiseErrorStr("Arg is not convertable to an int", .{}); }));
-  const width: i32 = @as(i32, @intFromFloat(L.toNumber(2) catch { L.raiseErrorStr("Arg is not convertable to an int", .{}); }));
-  const height: i32 = @as(i32, @intFromFloat(L.toNumber(3) catch { L.raiseErrorStr("Arg is not convertable to an int", .{}); }));
-
-  const view = server.root.viewById(view_id);
-  if(view == null) {
-    L.raiseErrorStr("View with id {d} does not exist", .{view_id});
-    return 0;
-  }
-
-  view.?.setSize(width, height);
-
-  return 0;
+  L.pushNil();
+  return 1;
 }
 
+// ---Remove focus from current view, and set to given id
+// ---@param view_id view_id
 pub fn set_focused(L: *zlua.Lua) i32 {
-  const nargs: i32 = L.getTop();
+  const view_id: u64 = @intCast(L.checkInteger(1));
 
-  if(nargs != 1) {
-    L.raiseErrorStr("Expected 1 arguments, found {d}", .{nargs});
-    return 0;
+  if(server.root.viewById(view_id)) |view| {
+    view.setFocused();
+    L.pushNil();
+    return 1;
   }
 
-  L.checkType(1, .number);
-
-  const view_id: u64 = @as(u64, @intCast(L.toInteger(1) catch { L.raiseErrorStr("Arg is not convertable to an int", .{}); }));
-
-  const view = server.root.viewById(view_id);
-  if(view == null) {
-    L.raiseErrorStr("View with id {d} does not exist", .{view_id});
-    return 0;
-  }
-
-  view.?.setFocused();
-
-  return 0;
+  L.pushNil();
+  return 1;
 }
 
+// ---Get the title of the view
+// ---@param view_id view_id 0 maps to focused view
+// ---@return string?
 pub fn get_title(L: *zlua.Lua) i32 {
-  const nargs: i32 = L.getTop();
+  const view_id: u64 = @intCast(L.checkInteger(1));
 
-  if(nargs != 1) {
-    L.raiseErrorStr("Expected 1 arguments, found {d}", .{nargs});
-    return 0;
-  }
+  const view: ?*View = if (view_id == 0) server.seat.focused_view else server.root.viewById(view_id);
+  if(view) |v| {
+    if(v.xdg_toplevel.title == null) {
+      L.pushNil();
+      return 1;
+    }
 
-  L.checkType(1, .number);
-
-  const view_id: u64 = @as(u64, @intCast(L.toInteger(1) catch { L.raiseErrorStr("Arg is not convertable to an int", .{}); }));
-
-  if(server.root.viewById(view_id)) |view| {
-    if(view.xdg_toplevel.title == null) return 0;
-
-    _ = L.pushString(std.mem.span(view.xdg_toplevel.title.?));
+    _ = L.pushString(std.mem.span(v.xdg_toplevel.title.?));
     return 1;
   }
 
-  return 0;
+  L.pushNil();
+  return 1;
 }
 
+// ---Get the app_id of the view
+// ---@param view_id view_id 0 maps to focused view
+// ---@return string?
 pub fn get_app_id(L: *zlua.Lua) i32 {
-  const nargs: i32 = L.getTop();
+  const view_id: u64 = @intCast(L.checkInteger(1));
 
-  if(nargs != 1) {
-    L.raiseErrorStr("Expected 1 arguments, found {d}", .{nargs});
-    return 0;
-  }
+  const view: ?*View = if (view_id == 0) server.seat.focused_view else server.root.viewById(view_id);
+  if(view) |v| {
+    if(v.xdg_toplevel.app_id == null) {
+      L.pushNil();
+      return 1;
+    }
 
-  L.checkType(1, .number);
-
-  const view_id: u64 = @as(u64, @intCast(L.toInteger(1) catch { L.raiseErrorStr("Arg is not convertable to an int", .{}); }));
-
-  if(server.root.viewById(view_id)) |view| {
-    if(view.xdg_toplevel.app_id == null) return 0;
-
-    _ = L.pushString(std.mem.span(view.xdg_toplevel.app_id.?));
+    _ = L.pushString(std.mem.span(v.xdg_toplevel.app_id.?));
     return 1;
   }
 
-  return 0;
+  L.pushNil();
+  return 1;
 }
