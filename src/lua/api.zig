@@ -7,53 +7,33 @@ const gpa = std.heap.c_allocator;
 const env_map = &@import("../main.zig").env_map;
 const server = &@import("../main.zig").server;
 
+/// ---Spawn new application via the shell command
+/// ---@param cmd string Command to be run by a shell
 pub fn spawn(L: *zlua.Lua) i32 {
-  const nargs: i32 = L.getTop();
-
-  if (nargs < 1) {
-    L.raiseErrorStr("Expected at least one arguments", .{});
-    return 0;
-  }
-
-  L.checkType(1, .string);
-
-  const cmd = L.toString(1) catch {
-    L.raiseErrorStr("Lua error check your config", .{});
-  };
+  const cmd = L.checkString(1);
 
   var child = std.process.Child.init(&[_][]const u8{ "/bin/sh", "-c", cmd }, gpa);
   child.env_map = env_map;
   child.spawn() catch {
-    std.log.err("Unable to spawn process \"{s}\"", .{cmd});
+    L.raiseErrorStr("Unable to spawn process", .{}); // TODO: Give more descriptive error
   };
 
-  return 0;
+  L.pushNil();
+  return 1;
 }
 
+/// ---Exit mezzaluna
 pub fn exit(L: *zlua.Lua) i32 {
-  const nargs: i32 = L.getTop();
-
-  if (nargs != 0) {
-    L.raiseErrorStr("Expected no arguments", .{});
-  }
-
   server.wl_server.terminate();
 
-  return 0;
+  L.pushNil();
+  return 1;
 }
 
+/// ---Change to a different virtual terminal
+/// ---@param vt_num integer virtual terminal number to switch to
 pub fn change_vt(L: *zlua.Lua) i32 {
-  const nargs: i32 = L.getTop();
-
-  if (nargs != 1) {
-    L.raiseErrorStr("Expected 1 argument, found {d}", .{nargs});
-  }
-
-  L.checkType(1, .number);
-
-  const vt_num: c_uint = @intCast(L.toInteger(1) catch {
-      L.raiseErrorStr("Failed to switch vt", .{});
-  });
+  const vt_num: c_uint = @intCast(L.checkInteger(1));
 
   if (server.session) |session| {
     std.log.debug("Changing virtual terminal to {d}", .{vt_num});
@@ -64,5 +44,6 @@ pub fn change_vt(L: *zlua.Lua) i32 {
     L.raiseErrorStr("Mez has not been initialized yet", .{});
   }
 
-  return 0;
+  L.pushNil();
+  return 1;
 }
