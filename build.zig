@@ -93,5 +93,4 @@ pub fn build(b: *std.Build) void {
   const run_cmd = b.addRunArtifact(mez);
   run_step.dependOn(&run_cmd.step);
   run_cmd.step.dependOn(b.getInstallStep());
-  run_cmd.addArg("alacritty");
 }
