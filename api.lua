@@ -70,7 +70,7 @@ mez.options = {
 	},
 	popups = nil, -- same options as windows, mimic window options if nil
 	output = {
-		["eDP-1"] = { 
+		["eDP-1"] = {
 			brightness = 0.25,
 			rate = "60.00",
 			resolution = "1920x1080",
