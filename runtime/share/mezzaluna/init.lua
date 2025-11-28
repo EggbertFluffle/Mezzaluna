@@ -17,7 +17,7 @@ function print_table (t)
 end
 
 local master = function()
-  local mast = {
+  local ctx = {
     master_ratio = 0.5,
     stack = {},
     master = nil,
@@ -26,16 +26,16 @@ local master = function()
   local tile_views = function ()
     local res = mez.output.get_resolution(0)
 
-    if #mast.stack == 0 then
-      mez.view.set_size(mast.master, res.width, res.height)
-      mez.view.set_position(mast.master, 0, 0)
+    if #ctx.stack == 0 then
+      mez.view.set_size(ctx.master, res.width, res.height)
+      mez.view.set_position(ctx.master, 0, 0)
     else
-      mez.view.set_size(mast.master, res.width * mast.master_ratio, res.height)
-      mez.view.set_position(mast.master, 0, 0)
+      mez.view.set_size(ctx.master, res.width * ctx.master_ratio, res.height)
+      mez.view.set_position(ctx.master, 0, 0)
 
-      for i, stack_id in ipairs(mast.stack) do
-        mez.view.set_size(stack_id, res.width * (1 - mast.master_ratio), res.height / #mast.stack)
-        mez.view.set_position(stack_id, res.width * mast.master_ratio, (res.height / #mast.stack * (i - 1)))
+      for i, stack_id in ipairs(ctx.stack) do
+        mez.view.set_size(stack_id, res.width * (1 - ctx.master_ratio), res.height / #ctx.stack)
+        mez.view.set_position(stack_id, res.width * ctx.master_ratio, (res.height / #ctx.stack * (i - 1)))
       end
     end
   end
@@ -43,11 +43,10 @@ local master = function()
   mez.hook.add("ViewMapPre", {
     callback = function(v)
       mez.view.set_focused(v)
-
-      if mast.master == nil then
-        mast.master = v
+      if ctx.master == nil then
+        ctx.master = v
       else
-        table.insert(mast.stack, #mast.stack + 1, v)
+        table.insert(ctx.stack, #ctx.stack + 1, v)
       end
 
       tile_views()
@@ -56,24 +55,25 @@ local master = function()
 
   mez.hook.add("ViewUnmapPost", {
     callback = function(v)
-      if v == mast.master then
-        if #mast.stack > 0 then
-          mast.master = table.remove(mast.stack, 1)
+      if v == ctx.master then
+        if #ctx.stack > 0 then
+          ctx.master = table.remove(ctx.stack, 1)
+          mez.view.set_focused(ctx.master)
         else
-          mast.master = nil
+          ctx.master = nil
         end
       else
-        for i, id in ipairs(mast.stack) do
+        for i, id in ipairs(ctx.stack) do
           if id == v then
             if i == 1 then
-              mez.view.set_focused(mast.master)
-            elseif i == #mast.stack then
-              mez.view.set_focused(mast.stack[i - 1])
+              mez.view.set_focused(ctx.master)
+            elseif i == #ctx.stack then
+              mez.view.set_focused(ctx.stack[i - 1])
             else
-              mez.view.set_focused(mast.stack[i + 1])
+              mez.view.set_focused(ctx.stack[i + 1])
             end
 
-            table.remove(mast.stack, i)
+            table.remove(ctx.stack, i)
           end
         end
       end
@@ -104,13 +104,13 @@ local master = function()
     press = function()
       local focused = mez.view.get_focused_id()
 
-      if focused == mast.master then return end
+      if focused == ctx.master then return end
 
-      for i, id in ipairs(mast.stack) do
+      for i, id in ipairs(ctx.stack) do
         if focused == id then
-          local t = mast.master
-          mast.master = mast.stack[i]
-          mast.stack[i] = t
+          local t = ctx.master
+          ctx.master = ctx.stack[i]
+          ctx.stack[i] = t
         end
       end
 
@@ -122,15 +122,15 @@ local master = function()
     press = function ()
       local focused = mez.view.get_focused_id()
 
-      if focused == mast.master then
-        mez.view.set_focused(mast.stack[1])
-      elseif focused == mast.stack[#mast.stack] then
-        mez.view.set_focused(mast.master)
+      if focused == ctx.master then
+        mez.view.set_focused(ctx.stack[1])
+      elseif focused == ctx.stack[#ctx.stack] then
+        mez.view.set_focused(ctx.master)
       else
-        for i, id in ipairs(mast.stack) do
+        for i, id in ipairs(ctx.stack) do
           -- TODO: use table.find
           if focused == id then
-            mez.view.set_focused(mast.stack[i + 1])
+            mez.view.set_focused(ctx.stack[i + 1])
           end
         end
       end
@@ -141,15 +141,15 @@ local master = function()
     press = function ()
       local focused = mez.view.get_focused_id()
 
-      if focused == mast.master then
-        mez.view.set_focused(mast.stack[#mast.stack])
-      elseif focused == mast.stack[1] then
-        mez.view.set_focused(mast.master)
+      if focused == ctx.master then
+        mez.view.set_focused(ctx.stack[#ctx.stack])
+      elseif focused == ctx.stack[1] then
+        mez.view.set_focused(ctx.master)
       else
-        for i, id in ipairs(mast.stack) do
+        for i, id in ipairs(ctx.stack) do
           -- TODO: use table.find
           if focused == id then
-            mez.view.set_focused(mast.stack[i - 1])
+            mez.view.set_focused(ctx.stack[i - 1])
           end
         end
       end
@@ -158,8 +158,8 @@ local master = function()
 
   mez.input.add_keymap("alt", "h", {
     press = function()
-      if mast.master_ratio > 0.15 then
-        mast.master_ratio = mast.master_ratio - 0.05
+      if ctx.master_ratio > 0.15 then
+        ctx.master_ratio = ctx.master_ratio - 0.05
         tile_views()
       end
     end
@@ -167,8 +167,8 @@ local master = function()
 
   mez.input.add_keymap("alt", "l", {
     press = function()
-      if mast.master_ratio < 0.85 then
-        mast.master_ratio = mast.master_ratio + 0.05
+      if ctx.master_ratio < 0.85 then
+        ctx.master_ratio = ctx.master_ratio + 0.05
         tile_views()
       end
     end
