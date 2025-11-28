@@ -15,6 +15,7 @@ const Keymap = @import("types/keymap.zig");
 const Hook = @import("types/hook.zig");
 const Events = @import("types/events.zig");
 const RemoteLua = @import("RemoteLua.zig");
+const RemoteLuaManager = @import("RemoteLuaManager.zig");
 
 const gpa = std.heap.c_allocator;
 const server = &@import("main.zig").server;
@@ -25,6 +26,7 @@ renderer: *wlr.Renderer,
 backend: *wlr.Backend,
 event_loop: *wl.EventLoop,
 session: ?*wlr.Session,
+remote_lua_manager: ?*RemoteLuaManager,
 
 shm: *wlr.Shm,
 xdg_shell: *wlr.XdgShell,
@@ -97,6 +99,7 @@ pub fn init(self: *Server) void {
     .root = undefined,
     .seat = undefined,
     .cursor = undefined,
+    .remote_lua_manager = RemoteLuaManager.init() catch Utils.oomPanic(),
     .keymaps = .init(gpa),
     .hooks = try .initCapacity(gpa, 10), // TODO: choose how many slots to start with
     .events = try .init(gpa),

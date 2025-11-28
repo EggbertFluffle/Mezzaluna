@@ -12,7 +12,7 @@ const server = &@import("main.zig").server;
 
 global: *wl.Global,
 
-pub fn init() ?*RemoteLuaManager {
+pub fn init() !?*RemoteLuaManager {
   const self = try gpa.create(RemoteLuaManager);
 
   self.global = try wl.Global.create(server.wl_server, mez.RemoteLuaManagerV1, 1, ?*anyopaque, null, bind);
@@ -37,10 +37,10 @@ _: ?*anyopaque,
     .destroy => remote_lua_manager_v1.destroy(),
     .get_remote => |req| {
       RemoteLua.create(
-      remote_lua_manager_v1.getClient(),
-      remote_lua_manager_v1.getVersion(),
-      req.id,
-    ) catch {
+        remote_lua_manager_v1.getClient(),
+        remote_lua_manager_v1.getVersion(),
+        req.id,
+      ) catch {
         remote_lua_manager_v1.getClient().postNoMemory();
         Utils.oomPanic();
       };
