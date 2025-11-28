@@ -7,6 +7,7 @@ const xkb = @import("xkbcommon");
 const wlr = @import("wlroots");
 const zlua = @import("zlua");
 
+const RemoteLua = @import("../RemoteLua.zig");
 const Event = @import("events.zig");
 const Lua = &@import("../main.zig").lua;
 
@@ -38,6 +39,8 @@ pub fn callback(self: *const Hook, args: anytype) void {
     i = k;
   }
 
-  Lua.state.protectedCall(.{ .args = i }) catch { };
+  Lua.state.protectedCall(.{ .args = i }) catch {
+    RemoteLua.sendNewLogEntry(Lua.state.toString(-1) catch unreachable);
+  };
   Lua.state.pop(-1);
 }
