@@ -12,7 +12,7 @@ const server = &@import("main.zig").server;
 
 global: *wl.Global,
 
-pub fn init() ?*RemoteLuaManager {
+pub fn init() !?*RemoteLuaManager {
   const self = try gpa.create(RemoteLuaManager);
 
   self.global = try wl.Global.create(server.wl_server, mez.RemoteLuaManagerV1, 1, ?*anyopaque, null, bind);
