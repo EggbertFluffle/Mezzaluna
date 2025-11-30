@@ -186,7 +186,6 @@ fn handleNewXdgToplevelDecoration(
   _: *wl.Listener(*wlr.XdgToplevelDecorationV1),
   decoration: *wlr.XdgToplevelDecorationV1
 ) void {
-  std.log.debug("Request for decorations", .{});
   if(server.root.viewById(@intFromPtr(decoration.toplevel))) |view| {
     view.xdg_toplevel_decoration = decoration;
   }

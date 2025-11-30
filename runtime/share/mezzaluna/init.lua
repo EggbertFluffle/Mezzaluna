@@ -10,76 +10,150 @@ end
 mez.path.config = mez.fs.joinpath(env_conf, "mez", "init.lua")
 package.path = package.path..";"..mez.fs.joinpath(env_conf, "mez", "lua", "?.lua")
 
-function print_table (t)
-  for key, value in pairs(t) do
-    print(key .. ":" .. value)
-  end
+function print_table(tbl, indent, seen)
+    indent = indent or 0
+    seen = seen or {}
+
+    -- Prevent infinite loops from circular references
+    if seen[tbl] then
+        print(string.rep("  ", indent) .. "...(circular reference)")
+        return
+    end
+    seen[tbl] = true
+
+    for key, value in pairs(tbl) do
+        local formatting = string.rep("  ", indent) .. tostring(key) .. ": "
+
+        if type(value) == "table" then
+            print(formatting .. "{")
+            print_table(value, indent + 1, seen)
+            print(string.rep("  ", indent) .. "}")
+        elseif type(value) == "string" then
+            print(formatting .. '"' .. value .. '"')
+        else
+            print(formatting .. tostring(value))
+        end
+    end
 end
 
 local master = function()
-  local ctx = {
-    master_ratio = 0.5,
-    stack = {},
-    master = nil,
+  local config = {
+    tag_count = 5,
   }
 
-  local tile_views = function ()
-    local res = mez.output.get_resolution(0)
+  local ctx = {
+    master_ratio = 0.5,
+    tags = {},
+    tag_id = 1
+  }
 
-    if #ctx.stack == 0 then
-      mez.view.set_size(ctx.master, res.width, res.height)
-      mez.view.set_position(ctx.master, 0, 0)
+  local tile_onscreen = function(tag_id, res)
+    print("positioning tag " .. tag_id .. " ONscreen")
+
+    if ctx.tags[tag_id].master == nil then
+      return
+    end
+
+    if #ctx.tags[tag_id].stack == 0 then
+      mez.view.set_size(ctx.tags[tag_id].master, res.width, res.height)
+      mez.view.set_position(ctx.tags[tag_id].master, 0, 0)
     else
-      mez.view.set_size(ctx.master, res.width * ctx.master_ratio, res.height)
-      mez.view.set_position(ctx.master, 0, 0)
+      mez.view.set_size(ctx.tags[tag_id].master, res.width * ctx.master_ratio, res.height)
+      mez.view.set_position(ctx.tags[tag_id].master, 0, 0)
 
-      for i, stack_id in ipairs(ctx.stack) do
-        mez.view.set_size(stack_id, res.width * (1 - ctx.master_ratio), res.height / #ctx.stack)
-        mez.view.set_position(stack_id, res.width * ctx.master_ratio, (res.height / #ctx.stack * (i - 1)))
+      for i, stack_id in ipairs(ctx.tags[tag_id].stack) do
+        mez.view.set_size(stack_id, res.width * (1 - ctx.master_ratio), res.height / #ctx.tags[tag_id].stack)
+        mez.view.set_position(stack_id, res.width * ctx.master_ratio, (res.height / #ctx.tags[tag_id].stack * (i - 1)))
       end
     end
   end
 
+  local tile_offscreen = function(tag_id, res)
+    if ctx.tags[tag_id].master == nil then
+      return
+    end
+
+    mez.view.set_position(ctx.tags[tag_id].master, 0, -res.height)
+    mez.view.set_size(ctx.tags[tag_id].master, res.width, res.height)
+
+    for _, view in ipairs(ctx.tags[tag_id].stack) do
+      mez.view.set_position(view, 0, -res.height)
+      mez.view.set_size(view, res.width, res.height)
+    end
+  end
+
+  local tile_all = function ()
+    local res = mez.output.get_resolution(0)
+
+    for id = 1,config.tag_count do
+      if id == ctx.tag_id then
+        tile_onscreen(id, res)
+      else
+        tile_offscreen(id, res)
+      end
+    end
+  end
+
+  for i = 1,config.tag_count do
+    ctx.tags[#ctx.tags + 1] = {
+      stack = {},
+      master = nil,
+    }
+    mez.input.add_keymap("alt", "" .. i, {
+      press = function ()
+        ctx.tag_id = i
+        tile_all()
+      end
+    })
+  end
+
   mez.hook.add("ViewMapPre", {
     callback = function(v)
-      mez.view.set_focused(v)
-      if ctx.master == nil then
-        ctx.master = v
+      if ctx.tags[ctx.tag_id].master == nil then
+        ctx.tags[ctx.tag_id].master = v
       else
-        table.insert(ctx.stack, #ctx.stack + 1, v)
+        table.insert(ctx.tags[ctx.tag_id].stack, #ctx.tags[ctx.tag_id].stack + 1, v)
       end
 
-      tile_views()
+      mez.view.set_focused(v)
+
+      tile_all()
     end
   })
 
   mez.hook.add("ViewUnmapPost", {
     callback = function(v)
-      if v == ctx.master then
-        if #ctx.stack > 0 then
-          ctx.master = table.remove(ctx.stack, 1)
-          mez.view.set_focused(ctx.master)
+      if v == ctx.tags[ctx.tag_id].master then
+        if #ctx.tags[ctx.tag_id].stack > 0 then
+          ctx.tags[ctx.tag_id].master = table.remove(ctx.tags[ctx.tag_id].stack, 1)
+          mez.view.set_focused(ctx.tags[ctx.tag_id].master)
         else
-          ctx.master = nil
+          ctx.tags[ctx.tag_id].master = nil
         end
       else
-        for i, id in ipairs(ctx.stack) do
+        for i, id in ipairs(ctx.tags[ctx.tag_id].stack) do
           if id == v then
             if i == 1 then
-              mez.view.set_focused(ctx.master)
-            elseif i == #ctx.stack then
-              mez.view.set_focused(ctx.stack[i - 1])
+              mez.view.set_focused(ctx.tags[ctx.tag_id].master)
+            elseif i == #ctx.tags[ctx.tag_id].stack then
+              mez.view.set_focused(ctx.tags[ctx.tag_id].stack[i - 1])
             else
-              mez.view.set_focused(ctx.stack[i + 1])
+              mez.view.set_focused(ctx.tags[ctx.tag_id].stack[i + 1])
             end
 
-            table.remove(ctx.stack, i)
+            table.remove(ctx.tags[ctx.tag_id].stack, i)
           end
         end
       end
 
-      tile_views()
+      tile_all()
     end
+  })
+
+  mez.input.add_keymap("alt", "p", {
+    press = function()
+      print("no luancher")
+    end,
   })
 
   mez.input.add_keymap("alt|shift", "Return", {
@@ -104,17 +178,17 @@ local master = function()
     press = function()
       local focused = mez.view.get_focused_id()
 
-      if focused == ctx.master then return end
+      if focused == ctx.tags[ctx.tag_id].master then return end
 
-      for i, id in ipairs(ctx.stack) do
+      for i, id in ipairs(ctx.tags[ctx.tag_id].stack) do
         if focused == id then
-          local t = ctx.master
-          ctx.master = ctx.stack[i]
-          ctx.stack[i] = t
+          local t = ctx.tags[ctx.tag_id].master
+          ctx.tags[ctx.tag_id].master = ctx.tags[ctx.tag_id].stack[i]
+          ctx.tags[ctx.tag_id].stack[i] = t
         end
       end
 
-      tile_views()
+      tile_all()
     end,
   })
 
@@ -122,15 +196,15 @@ local master = function()
     press = function ()
       local focused = mez.view.get_focused_id()
 
-      if focused == ctx.master then
-        mez.view.set_focused(ctx.stack[1])
-      elseif focused == ctx.stack[#ctx.stack] then
-        mez.view.set_focused(ctx.master)
+      if focused == ctx.tags[ctx.tag_id].master then
+        mez.view.set_focused(ctx.tags[ctx.tag_id].stack[1])
+      elseif focused == ctx.tags[ctx.tag_id].stack[#ctx.tags[ctx.tag_id].stack] then
+        mez.view.set_focused(ctx.tags[ctx.tag_id].master)
       else
-        for i, id in ipairs(ctx.stack) do
+        for i, id in ipairs(ctx.tags[ctx.tag_id].stack) do
           -- TODO: use table.find
           if focused == id then
-            mez.view.set_focused(ctx.stack[i + 1])
+            mez.view.set_focused(ctx.tags[ctx.tag_id].stack[i + 1])
           end
         end
       end
@@ -141,15 +215,15 @@ local master = function()
     press = function ()
       local focused = mez.view.get_focused_id()
 
-      if focused == ctx.master then
-        mez.view.set_focused(ctx.stack[#ctx.stack])
-      elseif focused == ctx.stack[1] then
-        mez.view.set_focused(ctx.master)
+      if focused == ctx.tags[ctx.tag_id].master then
+        mez.view.set_focused(ctx.tags[ctx.tag_id].stack[#ctx.tags[ctx.tag_id].stack])
+      elseif focused == ctx.tags[ctx.tag_id].stack[1] then
+        mez.view.set_focused(ctx.tags[ctx.tag_id].master)
       else
-        for i, id in ipairs(ctx.stack) do
+        for i, id in ipairs(ctx.tags[ctx.tag_id].stack) do
           -- TODO: use table.find
           if focused == id then
-            mez.view.set_focused(ctx.stack[i - 1])
+            mez.view.set_focused(ctx.tags[ctx.tag_id].stack[i - 1])
           end
         end
       end
@@ -160,7 +234,7 @@ local master = function()
     press = function()
       if ctx.master_ratio > 0.15 then
         ctx.master_ratio = ctx.master_ratio - 0.05
-        tile_views()
+        tile_all()
       end
     end
   })
@@ -169,7 +243,7 @@ local master = function()
     press = function()
       if ctx.master_ratio < 0.85 then
         ctx.master_ratio = ctx.master_ratio + 0.05
-        tile_views()
+        tile_all()
       end
     end
   })
@@ -187,64 +261,12 @@ local master = function()
       end
     end
   })
+
+  for i = 1, 12 do
+    mez.input.add_keymap("ctrl|alt", "XF86Switch_VT_"..i, {
+      press = function() mez.api.change_vt(i) end
+    })
+  end
 end
 
 master()
-
-for i = 1, 12 do
-  mez.input.add_keymap("ctrl|alt", "XF86Switch_VT_"..i, {
-    press = function() mez.api.change_vt(i) end
-  })
-end
-
-local test = function()
-  -- View tests
-  mez.api.spawn("alacritty")
-  local focused_view = mez.view.get_focused_id()
-  print(focused_view)
-
-  for i = 0,4 do
-    mez.api.spawn("alacritty")
-  end
-
-  local view_ids = mez.view.get_all_ids()
-  for _, id in ipairs(view_ids) do
-    print(id)
-    mez.view.close(id)
-  end
-
-  print(mez.view.get_title(0))
-  print(mez.view.get_title(focused_view))
-  print(mez.view.get_app_id(0))
-  print(mez.view.get_app_id(focused_view))
-
-  mez.view.set_position(0, 100, 100)
-  mez.view.set_position(focused_view, 200, 200)
-  mez.view.set_size(0, 100, 100)
-  mez.view.set_size(focused_view, 200, 200)
-
-  -- Output tests
-  local focused_output = mez.output.get_focused_id()
-  print(focused_output)
-
-  local output_ids = mez.output.get_all_ids()
-  for _, id in ipairs(output_ids) do
-    print(id)
-  end
-
-  print(mez.output.get_name(0))
-  print(mez.output.get_name(focused_output))
-  print(mez.output.get_description(0))
-  print(mez.output.get_description(focused_output))
-  print(mez.output.get_model(0))
-  print(mez.output.get_model(focused_output))
-  print(mez.output.get_make(0))
-  print(mez.output.get_make(focused_output))
-  print(mez.output.get_serial(0))
-  print(mez.output.get_serial(focused_output))
-  print(mez.output.get_rate(0))
-  print(mez.output.get_rate(focused_output))
-
-  local res = mez.output.get_resolution(0)
-  print(res.width .. ", " .. res.height)
-end

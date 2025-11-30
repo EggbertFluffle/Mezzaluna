@@ -132,7 +132,6 @@ pub fn setSize(self: *View, width: i32, height: i32) void {
 // --------- XdgTopLevel event handlers ---------
 fn handleMap(listener: *wl.Listener(void)) void {
   const view: *View = @fieldParentPtr("map", listener);
-  std.log.debug("Mapping view '{s}'", .{view.xdg_toplevel.title orelse "(unnamed)"});
 
   server.events.exec("ViewMapPre", .{view.id});
 
@@ -221,8 +220,6 @@ fn handleRequestMove(
   _: *wlr.XdgToplevel.event.Move
 ) void {
   // const view: *View = @fieldParentPtr("request_move", listener);
-
-  std.log.debug("The clients should not be request moves", .{});
 
   // server.cursor.moveView(view);
   // server.cursor.grabbed_view = view;
