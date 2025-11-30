@@ -102,6 +102,13 @@ local master = function()
     mez.input.add_keymap("alt", "" .. i, {
       press = function ()
         ctx.tag_id = i
+
+        if ctx.tags[i].master then
+          mez.view.set_focused(ctx.tags[i].master)
+        else
+          mez.view.set_focused(nil)
+        end
+
         tile_all()
       end
     })
