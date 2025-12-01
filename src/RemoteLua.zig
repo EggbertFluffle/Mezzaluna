@@ -1,6 +1,7 @@
 const RemoteLua = @This();
 
 const std = @import("std");
+const zlua = @import("zlua");
 const wayland = @import("wayland");
 const Utils = @import("utils.zig");
 const Lua = @import("lua/lua.zig");
@@ -12,7 +13,7 @@ const server = &@import("main.zig").server;
 
 id: usize,
 remote_lua_v1: *mez.RemoteLuaV1,
-L: Lua,
+L: *zlua.Lua,
 
 pub fn sendNewLogEntry(str: [*:0]const u8) void {
   for (server.remote_lua_clients.items) |c| {
@@ -28,10 +29,12 @@ pub fn create(client: *wl.Client, version: u32, id: u32) !void {
   node.* = .{
     .remote_lua_v1 = remote_lua_v1,
     .id = server.remote_lua_clients.items.len,
-    .L = undefined,
+    .L = try zlua.Lua.init(gpa),
   };
-  try node.L.init();
   errdefer node.L.deinit();
+  node.L.openLibs();
+  Lua.openLibs(node.L);
+
   try server.remote_lua_clients.append(gpa, node);
 
   remote_lua_v1.setHandler(*RemoteLua, handleRequest, handleDestroy, node);
@@ -46,14 +49,14 @@ remote: *RemoteLua,
     .destroy => remote_lua_v1.destroy(),
     .push_lua => |req| {
       const chunk = std.mem.sliceTo(req.lua_chunk, 0);
-      remote.L.state.loadString(chunk) catch catchLuaFail(remote);
-      remote.L.state.protectedCall(.{}) catch catchLuaFail(remote);
+      remote.L.loadString(chunk) catch catchLuaFail(remote);
+      remote.L.protectedCall(.{}) catch catchLuaFail(remote);
     },
   }
 }
 
 fn catchLuaFail(remote: *RemoteLua) void {
-  const err_txt: []const u8 = remote.L.state.toString(-1) catch unreachable;
+  const err_txt: []const u8 = remote.L.toString(-1) catch unreachable;
   const txt = std.mem.concat(gpa, u8, &[_][]const u8{ "repl: ", err_txt }) catch Utils.oomPanic();
   defer gpa.free(txt);
 
