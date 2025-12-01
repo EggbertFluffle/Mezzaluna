@@ -35,7 +35,7 @@ pub fn build(b: *std.Build) void {
   scanner.generate("wl_seat", 7);
   scanner.generate("wl_data_device_manager", 3);
   scanner.generate("zxdg_decoration_manager_v1", 1);
-  scanner.generate("xdg_wm_base", 2);
+  scanner.generate("xdg_wm_base", 6);
   scanner.generate("zwp_tablet_manager_v2", 1);
   scanner.generate("zwlr_layer_shell_v1", 4);
 
