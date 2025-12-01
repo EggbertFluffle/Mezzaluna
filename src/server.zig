@@ -27,6 +27,7 @@ session: ?*wlr.Session,
 
 shm: *wlr.Shm,
 xdg_shell: *wlr.XdgShell,
+layer_shell: *wlr.LayerShellV1,
 xdg_toplevel_decoration_manager: *wlr.XdgDecorationManagerV1,
 
 // Input
@@ -51,10 +52,9 @@ new_output: wl.Listener(*wlr.Output) = .init(handleNewOutput),
 new_xdg_toplevel: wl.Listener(*wlr.XdgToplevel) = .init(handleNewXdgToplevel),
 new_xdg_popup: wl.Listener(*wlr.XdgPopup) = .init(handleNewXdgPopup),
 new_xdg_toplevel_decoration: wl.Listener(*wlr.XdgToplevelDecorationV1) = .init(handleNewXdgToplevelDecoration),
-// new_xdg_popup
-// new_xdg_toplevel
 
-// Seat listeners
+// LayerShell Listeners
+new_layer_surface: wl.Listener(*wlr.LayerSurfaceV1) = .init(handleNewLayerSurface),
 
 pub fn init(self: *Server) void {
   errdefer Utils.oomPanic();
@@ -86,6 +86,7 @@ pub fn init(self: *Server) void {
       std.process.exit(5);
     },
     .xdg_shell = try wlr.XdgShell.create(wl_server, 2),
+    .layer_sell = try wlr.LayerShellV1.create(wl_server, 4),
     .xdg_toplevel_decoration_manager = try wlr.XdgDecorationManagerV1.create(self.wl_server),
     .event_loop = event_loop,
     .session = session,
@@ -123,6 +124,9 @@ pub fn init(self: *Server) void {
 
   // XdgDecorationManagerV1 events
   self.xdg_toplevel_decoration_manager.events.new_toplevel_decoration.add(&self.new_xdg_toplevel_decoration);
+
+  // LayerShell events
+  self.layer_shell.events.new_surface.add(&self.new_layer_surface);
 }
 
 pub fn deinit(self: *Server) noreturn {
@@ -131,6 +135,7 @@ pub fn deinit(self: *Server) noreturn {
   self.new_xdg_toplevel.link.remove();
   self.new_xdg_popup.link.remove();
   self.new_xdg_toplevel_decoration.link.remove();
+  self.new_layer_surface.link.remove();
 
   self.seat.deinit();
   self.root.deinit();
@@ -196,4 +201,21 @@ fn handleNewXdgPopup(
   _: *wlr.XdgPopup
 ) void {
   std.log.err("Unimplemented handle new xdg popup", .{});
+}
+
+fn handleNewLayerSurface(
+  _: *wl.Listener(*wlr.LayerSurfaceV1),
+  layer_surface: *wlr.LayerSurfaceV1
+) void {
+  if (layer_surface.output == null) {
+    if (server.seat.focused_output == null) {
+      std.log.err("No output available for new layer surface", .{});
+      layer_surface.destroy();
+      return;
+    }
+
+    layer_surface.output = server.seat.focused_output.?.wlr_output;
+  }
+
+  _ = LayerSurface.init(layer_surface);
 }

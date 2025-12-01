@@ -36,6 +36,7 @@ pub fn build(b: *std.Build) void {
   scanner.generate("zxdg_decoration_manager_v1", 1);
   scanner.generate("xdg_wm_base", 2);
   scanner.generate("zwp_tablet_manager_v2", 1);
+  scanner.generate("zwlr_layer_shell_v1", 4);
 
   const wayland = b.createModule(.{ .root_source_file = scanner.result });
   const xkbcommon = b.dependency("xkbcommon", .{}).module("xkbcommon");
@@ -77,19 +78,7 @@ pub fn build(b: *std.Build) void {
 
   b.installArtifact(mez);
 
-  const exe_check = b.addExecutable(.{
-    .name = "mez",
-    .root_module = b.createModule(.{
-      .root_source_file = b.path("src/main.zig"),
-      .target = target,
-      .optimize = optimize,
-    })
-  });
-
-  const check = b.step("check", "check if mez compiles");
-  check.dependOn(&exe_check.step);
-
-  const run_step = b.step("run", "Run the app");
+  const run_step = b.step("run", "Run the compositor");
   const run_cmd = b.addRunArtifact(mez);
   run_step.dependOn(&run_cmd.step);
   run_cmd.step.dependOn(b.getInstallStep());

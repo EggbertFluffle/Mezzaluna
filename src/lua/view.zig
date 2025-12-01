@@ -59,7 +59,7 @@ pub fn close(L: *zlua.Lua) i32 {
   return 1;
 }
 
-// ---Position the view by it's top left corner
+// ---position the view by it's top left corner
 // ---@param view_id view_id 0 maps to focused view
 // ---@param x number x position for view
 // ---@param y number y position for view
