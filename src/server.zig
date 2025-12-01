@@ -8,6 +8,7 @@ const Root = @import("root.zig");
 const Seat = @import("seat.zig");
 const Cursor = @import("cursor.zig");
 const Keyboard = @import("keyboard.zig");
+const LayerSurface = @import("layer_surface.zig");
 const Output = @import("output.zig");
 const View = @import("view.zig");
 const Utils = @import("utils.zig");
@@ -86,7 +87,7 @@ pub fn init(self: *Server) void {
       std.process.exit(5);
     },
     .xdg_shell = try wlr.XdgShell.create(wl_server, 2),
-    .layer_sell = try wlr.LayerShellV1.create(wl_server, 4),
+    .layer_shell = try wlr.LayerShellV1.create(wl_server, 4),
     .xdg_toplevel_decoration_manager = try wlr.XdgDecorationManagerV1.create(self.wl_server),
     .event_loop = event_loop,
     .session = session,
