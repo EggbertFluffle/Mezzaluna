@@ -9,6 +9,9 @@ const Utils = @import("../utils.zig");
 const gpa = std.heap.c_allocator;
 const server = &@import("../main.zig").server;
 
+/// ---Create a new hook on an event
+/// ---@param string|string[] event(s)
+/// ---@param table options
 pub fn add(L: *zlua.Lua) i32 {
   L.checkType(2, .table);
 

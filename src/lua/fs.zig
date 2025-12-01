@@ -7,6 +7,9 @@ const Lua = @import("lua.zig");
 
 const gpa = std.heap.c_allocator;
 
+/// ---Join any number of paths into one path
+/// ---@vararg string paths to join
+/// ---@return string?
 pub fn joinpath(L: *zlua.Lua) i32 {
   const nargs: i32 = L.getTop();
   if (nargs < 2) {

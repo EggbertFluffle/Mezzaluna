@@ -24,6 +24,10 @@ fn parse_modkeys(modStr: []const u8) wlr.Keyboard.ModifierMask {
   return modifiers;
 }
 
+/// ---Create a new keymap
+/// ---@param string modifiers
+/// ---@param string keys
+/// ---@param table options
 pub fn add_keymap(L: *zlua.Lua) i32 {
   var keymap: Keymap = undefined;
   keymap.options.repeat = true;
@@ -61,6 +65,9 @@ pub fn add_keymap(L: *zlua.Lua) i32 {
   return 1;
 }
 
+/// ---Remove an existing keymap
+/// ---@param string modifiers
+/// ---@param string keys
 pub fn del_keymap(L: *zlua.Lua) i32 {
   L.checkType(1, .string);
   L.checkType(2, .string);
