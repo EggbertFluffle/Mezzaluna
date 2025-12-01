@@ -34,6 +34,7 @@ pub fn create(client: *wl.Client, version: u32, id: u32) !void {
   errdefer node.L.deinit();
   node.L.openLibs();
   Lua.openLibs(node.L);
+  // TODO: replace stdout and stderr with buffers we can send to the clients
 
   try server.remote_lua_clients.append(gpa, node);
 
