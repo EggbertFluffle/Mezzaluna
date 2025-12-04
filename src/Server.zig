@@ -15,6 +15,7 @@ const Utils        = @import("Utils.zig");
 const Keymap       = @import("types/Keymap.zig");
 const Hook         = @import("types/Hook.zig");
 const Events       = @import("types/Events.zig");
+const Popup = @import("Popup.zig");
 
 const gpa = std.heap.c_allocator;
 const server = &@import("main.zig").server;
@@ -199,11 +200,8 @@ fn handleNewXdgToplevelDecoration(
   }
 }
 
-fn handleNewXdgPopup(
-  _: *wl.Listener(*wlr.XdgPopup),
-  _: *wlr.XdgPopup
-) void {
-  std.log.err("Unimplemented handle new xdg popup", .{});
+fn handleNewXdgPopup(_: *wl.Listener(*wlr.XdgPopup), xdg_popup: *wlr.XdgPopup) void {
+    _ = xdg_popup;
 }
 
 fn handleNewLayerSurface(

@@ -4,6 +4,8 @@ const std = @import("std");
 const wl = @import("wayland").server.wl;
 const wlr = @import("wlroots");
 
+const Popup = @import("Popup.zig");
+const Output = @import("Output.zig");
 const Utils = @import("Utils.zig");
 
 const gpa = std.heap.c_allocator;
@@ -14,6 +16,7 @@ focused: bool,
 id: u64,
 
 // workspace: Workspace,
+output: ?*Output,
 xdg_toplevel: *wlr.XdgToplevel,
 xdg_toplevel_decoration: ?*wlr.XdgToplevelDecorationV1,
 scene_tree: *wlr.SceneTree,
@@ -54,6 +57,7 @@ pub fn initFromTopLevel(xdg_toplevel: *wlr.XdgToplevel) *View {
     .focused = false,
     .mapped = false,
     .id = @intFromPtr(xdg_toplevel),
+    .output = null,
 
     .xdg_toplevel = xdg_toplevel,
     .scene_tree = undefined,
@@ -66,6 +70,7 @@ pub fn initFromTopLevel(xdg_toplevel: *wlr.XdgToplevel) *View {
   // Later add to spesified output
   if(server.seat.focused_output) |output| {
     self.scene_tree = try output.layers.content.createSceneXdgSurface(xdg_toplevel.base);
+    self.output = output;
   } else {
     std.log.err("No output to attach new view to", .{});
     self.scene_tree = try server.root.waiting_room.createSceneXdgSurface(xdg_toplevel.base);
@@ -212,10 +217,9 @@ fn handleCommit(listener: *wl.Listener(*wlr.Surface), _: *wlr.Surface) void {
 }
 
 // --------- XdgToplevel Event Handlers ---------
-fn handleNewPopup(listener: *wl.Listener(*wlr.XdgPopup), popup: *wlr.XdgPopup) void {
-  _ = listener;
-  _ = popup;
-  std.log.err("Unimplemented view handle new popup", .{});
+fn handleNewPopup(listener: *wl.Listener(*wlr.XdgPopup), xdg_popup: *wlr.XdgPopup) void {
+  const view: *View = @fieldParentPtr("new_popup", listener);
+  _ = Popup.init(xdg_popup, view.scene_tree);
 }
 
 fn handleRequestMove(

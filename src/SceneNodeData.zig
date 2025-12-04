@@ -38,3 +38,17 @@ fn handleDestroy(listener: *wl.Listener(void)) void {
 
   gpa.destroy(scene_node_data);
 }
+
+pub fn getFromNode(node: *wlr.SceneNode) ?*SceneNodeData {
+  var n = node;
+  while (true) {
+    if (@as(?*SceneNodeData, @alignCast(@ptrCast(n.data)))) |scene_node_data| {
+      return scene_node_data;
+    }
+    if (n.parent) |parent_tree| {
+      n = &parent_tree.node;
+    } else {
+      return null;
+    }
+  }
+}
