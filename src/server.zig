@@ -11,6 +11,7 @@ const Keyboard = @import("keyboard.zig");
 const LayerSurface = @import("layer_surface.zig");
 const Output = @import("output.zig");
 const View = @import("view.zig");
+const Popup = @import("Popup.zig");
 const Utils = @import("utils.zig");
 const Keymap = @import("types/keymap.zig");
 const Hook = @import("types/hook.zig");
@@ -197,11 +198,8 @@ fn handleNewXdgToplevelDecoration(
   }
 }
 
-fn handleNewXdgPopup(
-  _: *wl.Listener(*wlr.XdgPopup),
-  _: *wlr.XdgPopup
-) void {
-  std.log.err("Unimplemented handle new xdg popup", .{});
+fn handleNewXdgPopup(_: *wl.Listener(*wlr.XdgPopup), xdg_popup: *wlr.XdgPopup) void {
+    _ = xdg_popup;
 }
 
 fn handleNewLayerSurface(
