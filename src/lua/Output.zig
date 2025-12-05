@@ -1,7 +1,7 @@
 const std = @import("std");
 const zlua = @import("zlua");
 
-const Output = @import("../output.zig");
+const Output = @import("../Output.zig");
 
 const server = &@import("../main.zig").server;
 

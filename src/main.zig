@@ -1,8 +1,8 @@
 const std = @import("std");
 const wlr = @import("wlroots");
 
-const Server = @import("server.zig");
-const Lua = @import("lua/lua.zig");
+const Server = @import("Server.zig");
+const Lua = @import("lua/Lua.zig");
 
 const gpa = std.heap.c_allocator;
 

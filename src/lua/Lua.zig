@@ -4,13 +4,13 @@ const std = @import("std");
 const config = @import("config");
 const zlua = @import("zlua");
 
-const Bridge = @import("bridge.zig");
-const Fs = @import("fs.zig");
-const Input = @import("input.zig");
-const Api = @import("api.zig");
-const Hook = @import("hook.zig");
-const View = @import("view.zig");
-const Output = @import("output.zig");
+const Bridge = @import("Bridge.zig");
+const Fs =     @import("Fs.zig");
+const Input =  @import("Input.zig");
+const Api =    @import("Api.zig");
+const Hook =   @import("Hook.zig");
+const View =   @import("View.zig");
+const Output = @import("Output.zig");
 
 const gpa = std.heap.c_allocator;
 

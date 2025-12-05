@@ -5,8 +5,8 @@ const zlua = @import("zlua");
 const xkb = @import("xkbcommon");
 const wlr = @import("wlroots");
 
-const Keymap = @import("../types/keymap.zig");
-const Utils = @import("../utils.zig");
+const Keymap = @import("../types/Keymap.zig");
+const Utils = @import("../Utils.zig");
 
 const server = &@import("../main.zig").server;
 

@@ -1,7 +1,7 @@
 const Bridge = @This();
 
 const std = @import("std");
-const Lua = @import("lua.zig");
+const Lua = @import("Lua.zig");
 
 const gpa = std.heap.c_allocator;
 

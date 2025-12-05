@@ -2,7 +2,7 @@ pub const Events = @This();
 
 const std = @import("std");
 
-const Hook = @import("hook.zig");
+const Hook = @import("Hook.zig");
 
 const Node = struct {
   hook: *const Hook,
