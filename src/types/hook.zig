@@ -38,6 +38,8 @@ pub fn callback(self: *const Hook, args: anytype) void {
     i = k;
   }
 
-  Lua.state.protectedCall(.{ .args = i }) catch { };
+  Lua.state.protectedCall(.{ .args = i }) catch {
+    // TODO: add a callback to remote lua when that gets merged
+  };
   Lua.state.pop(-1);
 }
