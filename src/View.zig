@@ -65,13 +65,10 @@ pub fn initFromTopLevel(xdg_toplevel: *wlr.XdgToplevel) *View {
   // Add new Toplevel to root of the tree
   // Later add to spesified output
   if(server.seat.focused_output) |output| {
-    std.log.debug("adding new view to content layer", .{});
     self.scene_tree = try output.layers.content.createSceneXdgSurface(xdg_toplevel.base);
-    // _ = output;
-    // self.scene_tree = try server.root.scene.tree.createSceneXdgSurface(xdg_toplevel.base);
   } else {
-    self.scene_tree = try server.root.waiting_room.createSceneXdgSurface(xdg_toplevel.base);
     std.log.err("No output to attach new view to", .{});
+    self.scene_tree = try server.root.waiting_room.createSceneXdgSurface(xdg_toplevel.base);
   }
 
   self.scene_tree.node.data = self;

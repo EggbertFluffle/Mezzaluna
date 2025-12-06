@@ -31,7 +31,6 @@ pub fn init(wlr_layer_surface: *wlr.LayerSurfaceV1) *LayerSurface {
     .scene_layer_surface = undefined,
   };
 
-// try server.root.scene.tree.createSceneLayerSurfaceV1(wlr_layer_surface)
   if(server.seat.focused_output) |output| {
     self.scene_layer_surface = switch (wlr_layer_surface.current.layer) {
       .background => try output.layers.background.createSceneLayerSurfaceV1(wlr_layer_surface),
@@ -97,5 +96,5 @@ fn handleCommit(
   layer_surface.output.wlr_output.effectiveResolution(&width, &height);
   _ = layer_surface.wlr_layer_surface.configure(@intCast(width), @intCast(height));
 
-  layer_surface.scene_layer_surface.tree.node.reparent(&layer_surface.output.scene_output.scene.tree);
+  layer_surface.scene_layer_surface.tree.node.reparent(layer_surface.output.layers.background);
 }
