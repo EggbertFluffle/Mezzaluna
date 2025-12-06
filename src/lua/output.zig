@@ -165,7 +165,7 @@ pub fn get_description(L: *zlua.Lua) i32 {
   return 1;
 }
 
-/// ---Get the description for the output
+/// ---Get the name of the output
 /// ---@param output_id output_id 0 maps to focused output
 /// ---@return stirng
 pub fn get_name(L: *zlua.Lua) i32 {
