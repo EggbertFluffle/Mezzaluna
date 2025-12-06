@@ -12,9 +12,7 @@ package.path = package.path..";"..mez.fs.joinpath(env_conf, "mez", "lua", "?.lua
 
 mez.hook.add("ViewPointerMotion", {
   callback = function (view_id, cursor_x, cursor_y)
-    print("cursor_x: " .. cursor_x)
-    print("cursor_y: " .. cursor_y)
-    print("view_name: ")
+    mez.view.set_focused(view_id)
   end
 })
 

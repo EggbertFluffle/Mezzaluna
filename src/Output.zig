@@ -5,8 +5,6 @@ const zwlr = @import("wayland").server.zwlr;
 const wlr = @import("wlroots");
 const std = @import("std");
 
-
-
 const Server = @import("Server.zig");
 const Utils =  @import("Utils.zig");
 const View =   @import("View.zig");

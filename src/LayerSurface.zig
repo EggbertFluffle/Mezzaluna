@@ -30,13 +30,14 @@ pub fn init(wlr_layer_surface: *wlr.LayerSurfaceV1) *LayerSurface {
     .wlr_layer_surface = wlr_layer_surface,
     .scene_layer_surface = undefined,
   };
+
 // try server.root.scene.tree.createSceneLayerSurfaceV1(wlr_layer_surface)
   if(server.seat.focused_output) |output| {
     self.scene_layer_surface = switch (wlr_layer_surface.current.layer) {
       .background => try output.layers.background.createSceneLayerSurfaceV1(wlr_layer_surface),
-      .bottom => try output.layers.background.createSceneLayerSurfaceV1(wlr_layer_surface),
-      .top => try output.layers.background.createSceneLayerSurfaceV1(wlr_layer_surface),
-      .overlay => try output.layers.background.createSceneLayerSurfaceV1(wlr_layer_surface),
+      .bottom => try output.layers.bottom.createSceneLayerSurfaceV1(wlr_layer_surface),
+      .top => try output.layers.top.createSceneLayerSurfaceV1(wlr_layer_surface),
+      .overlay => try output.layers.overlay.createSceneLayerSurfaceV1(wlr_layer_surface),
       else => {
         std.log.err("New layer surface of unidentified type", .{});
         unreachable;
