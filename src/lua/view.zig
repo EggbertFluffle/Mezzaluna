@@ -111,6 +111,11 @@ pub fn set_focused(L: *zlua.Lua) i32 {
     return 1;
   }
 
+  if (view_id == null) {
+    L.pushNil();
+    return 1;
+  }
+
   if(server.root.viewById(@intCast(view_id.?))) |view| {
     view.setFocused();
     L.pushNil();
