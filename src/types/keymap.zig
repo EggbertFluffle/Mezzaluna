@@ -30,7 +30,9 @@ pub fn callback(self: *const Keymap, release: bool) void {
     return;
   }
 
-  Lua.state.call(.{ .args = 0, .results = 0 });
+  Lua.state.protectedCall(.{ .args = 0, .results = 0 }) catch {
+    // TODO: add a callback to remote lua when that gets merged
+  };
   Lua.state.pop(-1);
 }
 
