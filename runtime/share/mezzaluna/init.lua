@@ -10,31 +10,11 @@ end
 mez.path.config = mez.fs.joinpath(env_conf, "mez", "init.lua")
 package.path = package.path..";"..mez.fs.joinpath(env_conf, "mez", "lua", "?.lua")
 
-function print_table(tbl, indent, seen)
-    indent = indent or 0
-    seen = seen or {}
-
-    -- Prevent infinite loops from circular references
-    if seen[tbl] then
-        print(string.rep("  ", indent) .. "...(circular reference)")
-        return
-    end
-    seen[tbl] = true
-
-    for key, value in pairs(tbl) do
-        local formatting = string.rep("  ", indent) .. tostring(key) .. ": "
-
-        if type(value) == "table" then
-            print(formatting .. "{")
-            print_table(value, indent + 1, seen)
-            print(string.rep("  ", indent) .. "}")
-        elseif type(value) == "string" then
-            print(formatting .. '"' .. value .. '"')
-        else
-            print(formatting .. tostring(value))
-        end
-    end
-end
+mez.hook.add("ViewPointerMotion", {
+  callback = function (view_id, cursor_x, cursor_y)
+    mez.view.set_focused(view_id)
+  end
+})
 
 local master = function()
   local config = {
@@ -48,8 +28,6 @@ local master = function()
   }
 
   local tile_onscreen = function(tag_id, res)
-    print("positioning tag " .. tag_id .. " ONscreen")
-
     if ctx.tags[tag_id].master == nil then
       return
     end
@@ -277,3 +255,30 @@ local master = function()
 end
 
 master()
+
+function print_table(tbl, indent, seen)
+    indent = indent or 0
+    seen = seen or {}
+
+    -- Prevent infinite loops from circular references
+    if seen[tbl] then
+        print(string.rep("  ", indent) .. "...(circular reference)")
+        return
+    end
+    seen[tbl] = true
+
+    for key, value in pairs(tbl) do
+        local formatting = string.rep("  ", indent) .. tostring(key) .. ": "
+
+        if type(value) == "table" then
+            print(formatting .. "{")
+            print_table(value, indent + 1, seen)
+            print(string.rep("  ", indent) .. "}")
+        elseif type(value) == "string" then
+            print(formatting .. '"' .. value .. '"')
+        else
+            print(formatting .. tostring(value))
+        end
+    end
+end
+

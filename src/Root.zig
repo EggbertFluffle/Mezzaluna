@@ -7,9 +7,9 @@ const std = @import("std");
 const wl = @import("wayland").server.wl;
 const wlr = @import("wlroots");
 
-const Output = @import("output.zig");
-const View = @import("view.zig");
-const Utils = @import("utils.zig");
+const Output = @import("Output.zig");
+const View =   @import("View.zig");
+const Utils =  @import("Utils.zig");
 
 const server = &@import("main.zig").server;
 const gpa = std.heap.c_allocator;
@@ -17,6 +17,7 @@ const gpa = std.heap.c_allocator;
 xdg_toplevel_decoration_manager: *wlr.XdgDecorationManagerV1,
 
 scene: *wlr.Scene,
+waiting_room: *wlr.SceneTree,
 scene_output_layout: *wlr.SceneOutputLayout,
 
 output_layout: *wlr.OutputLayout,
@@ -34,6 +35,7 @@ pub fn init(self: *Root) void {
 
   self.* = .{
     .scene = scene,
+    .waiting_room = try scene.tree.createSceneTree(),
     .output_layout = output_layout,
     .xdg_toplevel_decoration_manager = try wlr.XdgDecorationManagerV1.create(server.wl_server),
     .scene_output_layout = try scene.attachOutputLayout(output_layout),
@@ -54,14 +56,21 @@ pub fn deinit(self: *Root) void {
   self.scene.tree.node.destroy();
 }
 
+// Search output_layout's ouputs, and each outputs views
 pub fn viewById(self: *Root, id: u64) ?*View {
-  var it = self.scene.tree.children.iterator(.forward);
+  var output_it = self.output_layout.outputs.iterator(.forward);
 
-  while(it.next()) |node| {
-    if(node.data == null) continue;
+  while(output_it.next()) |o| {
+    if(o.output.data == null) continue;
+    const output: *Output = @ptrCast(@alignCast(o.output.data.?));
+    var node_it = output.layers.content.children.iterator(.forward);
 
-    const view: *View = @as(*View, @ptrCast(@alignCast(node.data.?)));
-    if(view.id == id) return view;
+    while(node_it.next()) |node| {
+      if(node.data == null) continue;
+
+      const view: *View = @as(*View, @ptrCast(@alignCast(node.data.?)));
+      if(view.id == id) return view;
+    }
   }
 
   return null;
@@ -77,39 +86,5 @@ pub fn outputById(self: *Root, id: u64) ?*Output {
     if(output.id == id) return output;
   }
 
-  return null;
-}
-
-const ViewAtResult = struct {
-    view: *View,
-    surface: *wlr.Surface,
-    sx: f64,
-    sy: f64,
-};
-
-pub fn viewAt(self: *Root, lx: f64, ly: f64) ?ViewAtResult {
-  var sx: f64 = undefined;
-  var sy: f64 = undefined;
-
-  if (self.scene.tree.node.at(lx, ly, &sx, &sy)) |node| {
-    if (node.type != .buffer) return null;
-    const scene_buffer = wlr.SceneBuffer.fromNode(node);
-    const scene_surface = wlr.SceneSurface.tryFromBuffer(scene_buffer) orelse return null;
-
-    var it: ?*wlr.SceneTree = node.parent;
-
-    while (it) |n| : (it = n.node.parent) {
-      if (n.node.data) |data_ptr| {
-        if (@as(?*View, @ptrCast(@alignCast(data_ptr)))) |view| {
-          return ViewAtResult{
-            .view = view,
-            .surface = scene_surface.surface,
-            .sx = sx,
-            .sy = sy,
-          };
-        }
-      }
-    }
-  }
   return null;
 }

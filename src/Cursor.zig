@@ -8,10 +8,9 @@ const wl = @import("wayland").server.wl;
 const wlr = @import("wlroots");
 const xkb = @import("xkbcommon");
 
-const View = @import("view.zig");
-const Utils = @import("utils.zig");
-
-const c = @import("c.zig").c;
+const View = @import("View.zig");
+const Utils = @import("Utils.zig");
+const c = @import("C.zig").c;
 
 const server = &@import("main.zig").server;
 const linux = std.os.linux;
@@ -30,12 +29,13 @@ hold_end: wl.Listener(*wlr.Pointer.event.HoldEnd) = .init(handleHoldEnd),
 mode: enum { passthrough, move, resize } = .passthrough,
 
 // Drag information
-drag_start_x: c_int = 0,
-drag_start_y: c_int = 0,
-drag_view_offset_x: c_int = 0,
-drag_view_offset_y: c_int = 0,
-drag_view_width: c_int = 0,
-drag_view_height: c_int = 0,
+drag: struct {
+  start_x:       c_int,
+  start_y:       c_int,
+  view: ?*View,
+  view_offset_x: ?c_int,
+  view_offset_y: ?c_int,
+},
 
 pub fn init(self: *Cursor) void {
   errdefer Utils.oomPanic();
@@ -43,6 +43,13 @@ pub fn init(self: *Cursor) void {
   self.* = .{
     .wlr_cursor = try wlr.Cursor.create(),
     .x_cursor_manager = try wlr.XcursorManager.create(null, 24),
+    .drag = .{
+      .start_x = 0,
+      .start_y = 0,
+      .view = null,
+      .view_offset_x = null,
+      .view_offset_y = null,
+    }
   };
 
   try self.x_cursor_manager.load(1);
@@ -72,27 +79,37 @@ pub fn deinit(self: *Cursor) void {
 }
 
 pub fn processCursorMotion(self: *Cursor, time_msec: u32) void {
+  server.events.exec("PointerMotion", .{self.wlr_cursor.x, self.wlr_cursor.y});
   switch (self.mode) {
     .passthrough => {
-      if (server.root.viewAt(self.wlr_cursor.x, self.wlr_cursor.y)) |res| {
-        res.view.setFocused();
+      const output = server.seat.focused_output;
+      // Exit the switch if no focused output exists
+      if (output == null) return;
 
-        server.seat.wlr_seat.pointerNotifyEnter(res.surface, res.sx, res.sy);
-        server.seat.wlr_seat.pointerNotifyMotion(time_msec, res.sx, res.sy);
-      } else {
+      const viewAtResult = output.?.viewAt(self.wlr_cursor.x, self.wlr_cursor.y);
+      if (viewAtResult == null) {
         self.wlr_cursor.setXcursor(self.x_cursor_manager, "default");
         server.seat.wlr_seat.pointerClearFocus();
-      }
-    },
-    .move => {
-      const focused_view = server.seat.focused_view;
 
-      if(focused_view) |view| {
+        // This is gonna be fun
+        // server.seat.wlr_seat.keyboardSendKey(time_msec: u32, key: u32, state: u32);
+        // server.seat.wlr_seat.pointerSendMotion(time_msec: u32, sx: f64, sy: f64)
+        // server.seat.wlr_seat.pointerSendButton(time_msec: u32, button: u32, state: ButtonState)
+        return;
+      }
+
+      server.events.exec("ViewPointerMotion", .{viewAtResult.?.view.id, self.wlr_cursor.x, self.wlr_cursor.y});
+
+      server.seat.wlr_seat.pointerNotifyEnter(viewAtResult.?.surface, viewAtResult.?.sx, viewAtResult.?.sy);
+      server.seat.wlr_seat.pointerNotifyMotion(time_msec, viewAtResult.?.sx, viewAtResult.?.sy);
+    },
+    .move => { // TODO: Have these behave more like pointer motion
+      if(self.drag.view) |view| {
         view.scene_tree.node.setPosition(
           // TODO: add a lua option to configure the behavior of this, by
           // default it will be the following:
-          @as(c_int, @intFromFloat(self.wlr_cursor.x)) - self.drag_view_offset_x,
-          @as(c_int, @intFromFloat(self.wlr_cursor.y)) - self.drag_view_offset_y
+          @as(c_int, @intFromFloat(self.wlr_cursor.x)) - self.drag.view_offset_x.?,
+          @as(c_int, @intFromFloat(self.wlr_cursor.y)) - self.drag.view_offset_y.?
           // and the user should be able to configure if it clamps or not
         );
       }
@@ -141,18 +158,24 @@ fn handleButton(
     view.setFocused();
   }
 
+  // @hook PointerButtonPress // TODO Probably change this name
+  // @param button string // TODO Translate a button to a string or smth
+  // @param state string - "pressed" or "released"
+  // @param time_msecs number // TODO idk what the hell msecs is
+  const state = if (event.state == .pressed) "pressed" else "released";
+  server.events.exec("PointerButtonPress", .{event.button, state, event.time_msec});
+
   switch (event.state) {
     .pressed => {
       if(server.seat.keyboard_group.keyboard.getModifiers().alt) {
         // Can be BTN_RIGHT, BTN_LEFT, or BTN_MIDDLE
+        cursor.drag.start_x = @as(c_int, @intFromFloat(cursor.wlr_cursor.x));
+        cursor.drag.start_y = @as(c_int, @intFromFloat(cursor.wlr_cursor.y));
         if(server.seat.focused_view) |view| {
           // Keep track of where the drag started
-          cursor.drag_start_x = @as(c_int, @intFromFloat(cursor.wlr_cursor.x));
-          cursor.drag_start_y = @as(c_int, @intFromFloat(cursor.wlr_cursor.y));
-          cursor.drag_view_offset_x = cursor.drag_start_x - view.scene_tree.node.x;
-          cursor.drag_view_offset_y = cursor.drag_start_y - view.scene_tree.node.y;
-          cursor.drag_view_width = view.xdg_toplevel.base.geometry.width;
-          cursor.drag_view_height = view.xdg_toplevel.base.geometry.height;
+          cursor.drag.view = view;
+          cursor.drag.view_offset_x = cursor.drag.start_x - view.scene_tree.node.x;
+          cursor.drag.view_offset_y = cursor.drag.start_y - view.scene_tree.node.y;
 
           // Maybe comptime this for later reference
           if(event.button == c.libevdev_event_code_from_name(c.EV_KEY, "BTN_LEFT")) {
@@ -167,9 +190,13 @@ fn handleButton(
     .released => {
       cursor.mode = .passthrough;
 
-      if(server.seat.focused_view) |view| {
+      if(cursor.drag.view) |view| {
         _ = view.xdg_toplevel.setResizing(false);
       }
+
+      cursor.drag.view = null;
+      cursor.drag.view_offset_x = null;
+      cursor.drag.view_offset_y = null;
     },
     else => {
       std.log.err("Invalid/Unimplemented pointer button event type", .{});

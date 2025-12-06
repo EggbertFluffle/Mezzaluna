@@ -5,9 +5,9 @@ const wlr = @import("wlroots");
 const wl = @import("wayland").server.wl;
 const xkb = @import("xkbcommon");
 
-const Utils = @import("utils.zig");
-const View = @import("view.zig");
-const Output = @import("output.zig");
+const Utils =  @import("Utils.zig");
+const View =   @import("View.zig");
+const Output = @import("Output.zig");
 
 const server = &@import("main.zig").server;
 

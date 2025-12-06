@@ -1,7 +1,7 @@
 const std = @import("std");
 const zlua = @import("zlua");
 
-const View = @import("../view.zig");
+const View = @import("../View.zig");
 
 const server = &@import("../main.zig").server;
 
@@ -104,9 +104,11 @@ pub fn set_size(L: *zlua.Lua) i32 {
 pub fn set_focused(L: *zlua.Lua) i32 {
   const view_id: ?c_longlong = L.optInteger(1);
 
-  if(view_id == null and server.seat.focused_view != null) {
-    server.seat.focused_view.?.focused = false;
-    server.seat.focused_view = null;
+  if(view_id == null) {
+    if(server.seat.focused_view != null) {
+      server.seat.focused_view.?.focused = false;
+      server.seat.focused_view = null;
+    }
     L.pushNil();
     return 1;
   }

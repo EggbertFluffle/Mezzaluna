@@ -3,8 +3,8 @@ const Hook = @This();
 const std = @import("std");
 const zlua = @import("zlua");
 
-const THook = @import("../types/hook.zig");
-const Utils = @import("../utils.zig");
+const THook = @import("../types/Hook.zig");
+const Utils = @import("../Utils.zig");
 
 const gpa = std.heap.c_allocator;
 const server = &@import("../main.zig").server;

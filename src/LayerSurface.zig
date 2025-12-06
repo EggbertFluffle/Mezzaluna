@@ -4,8 +4,8 @@ const std = @import("std");
 const wl = @import("wayland").server.wl;
 const wlr = @import("wlroots");
 
-const Utils = @import("utils.zig");
-const Output = @import("output.zig");
+const Utils = @import("Utils.zig");
+const Output = @import("Output.zig");
 
 const gpa = std.heap.c_allocator;
 const server = &@import("main.zig").server;
@@ -28,8 +28,22 @@ pub fn init(wlr_layer_surface: *wlr.LayerSurfaceV1) *LayerSurface {
   self.* = .{
     .output = @ptrCast(@alignCast(wlr_layer_surface.output.?.data)),
     .wlr_layer_surface = wlr_layer_surface,
-    .scene_layer_surface = try server.root.scene.tree.createSceneLayerSurfaceV1(wlr_layer_surface)
+    .scene_layer_surface = undefined,
   };
+
+// try server.root.scene.tree.createSceneLayerSurfaceV1(wlr_layer_surface)
+  if(server.seat.focused_output) |output| {
+    self.scene_layer_surface = switch (wlr_layer_surface.current.layer) {
+      .background => try output.layers.background.createSceneLayerSurfaceV1(wlr_layer_surface),
+      .bottom => try output.layers.bottom.createSceneLayerSurfaceV1(wlr_layer_surface),
+      .top => try output.layers.top.createSceneLayerSurfaceV1(wlr_layer_surface),
+      .overlay => try output.layers.overlay.createSceneLayerSurfaceV1(wlr_layer_surface),
+      else => {
+        std.log.err("New layer surface of unidentified type", .{});
+        unreachable;
+      }
+    };
+  }
 
   self.wlr_layer_surface.surface.data = &self.scene_layer_surface.tree.node;
 
@@ -77,6 +91,11 @@ fn handleCommit(
   _: *wlr.Surface
 ) void {
   const layer_surface: *LayerSurface = @fieldParentPtr("commit", listener);
+
+  var width: c_int = undefined;
+  var height: c_int = undefined;
+  layer_surface.output.wlr_output.effectiveResolution(&width, &height);
+  _ = layer_surface.wlr_layer_surface.configure(@intCast(width), @intCast(height));
 
   layer_surface.scene_layer_surface.tree.node.reparent(&layer_surface.output.scene_output.scene.tree);
 }

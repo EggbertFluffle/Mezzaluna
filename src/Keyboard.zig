@@ -6,8 +6,8 @@ const Keyboard = @This();
 const std = @import("std");
 const gpa = std.heap.c_allocator;
 const server = &@import("main.zig").server;
-const Keymap = @import("types/keymap.zig");
-const Utils = @import("utils.zig");
+const Keymap = @import("types/Keymap.zig");
+const Utils = @import("Utils.zig");
 
 const wl = @import("wayland").server.wl;
 const wlr = @import("wlroots");

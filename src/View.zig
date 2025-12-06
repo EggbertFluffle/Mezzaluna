@@ -4,7 +4,7 @@ const std = @import("std");
 const wl = @import("wayland").server.wl;
 const wlr = @import("wlroots");
 
-const Utils = @import("utils.zig");
+const Utils = @import("Utils.zig");
 
 const gpa = std.heap.c_allocator;
 const server = &@import("main.zig").server;
@@ -64,7 +64,15 @@ pub fn initFromTopLevel(xdg_toplevel: *wlr.XdgToplevel) *View {
 
   // Add new Toplevel to root of the tree
   // Later add to spesified output
-  self.scene_tree = try server.root.scene.tree.createSceneXdgSurface(xdg_toplevel.base);
+  if(server.seat.focused_output) |output| {
+    std.log.debug("adding new view to content layer", .{});
+    self.scene_tree = try output.layers.content.createSceneXdgSurface(xdg_toplevel.base);
+    // _ = output;
+    // self.scene_tree = try server.root.scene.tree.createSceneXdgSurface(xdg_toplevel.base);
+  } else {
+    self.scene_tree = try server.root.waiting_room.createSceneXdgSurface(xdg_toplevel.base);
+    std.log.err("No output to attach new view to", .{});
+  }
 
   self.scene_tree.node.data = self;
   self.xdg_toplevel.base.data = self.scene_tree;
@@ -153,8 +161,6 @@ fn handleMap(listener: *wl.Listener(void)) void {
     _ = decoration.setMode(wlr.XdgToplevelDecorationV1.Mode.server_side);
   }
 
-  // Here is where we should tile and set size
-
   view.mapped = true;
 
   server.events.exec("ViewMapPost", .{view.id});
@@ -216,40 +222,19 @@ fn handleNewPopup(listener: *wl.Listener(*wlr.XdgPopup), popup: *wlr.XdgPopup) v
 }
 
 fn handleRequestMove(
-  _: *wl.Listener(*wlr.XdgToplevel.event.Move),
+  listener: *wl.Listener(*wlr.XdgToplevel.event.Move),
   _: *wlr.XdgToplevel.event.Move
 ) void {
-  // const view: *View = @fieldParentPtr("request_move", listener);
-
-  // server.cursor.moveView(view);
-  // server.cursor.grabbed_view = view;
-  // server.cursor.mode = .move;
-  // server.cursor.grab_x = server.cursor.wlr_cursor.x - @as(f64, @floatFromInt(view.geometry.x));
-  // server.cursor.grab_y = server.cursor.wlr_cursor.y - @as(f64, @floatFromInt(view.geometry.y));
+  const view: *View = @fieldParentPtr("request_move", listener);
+  server.events.exec("ViewRequestMove", .{view.id});
 }
 
 fn handleRequestResize(
-  _: *wl.Listener(*wlr.XdgToplevel.event.Resize),
+  listener: *wl.Listener(*wlr.XdgToplevel.event.Resize),
   _: *wlr.XdgToplevel.event.Resize
 ) void {
-  // const view: *View = @fieldParentPtr("request_resize", listener);
-
-  std.log.debug("The clients should not be request moves", .{});
-
-  // server.cursor.grabbed_view = view;
-  // server.cursor.mode = .resize;
-  // server.cursor.resize_edges = event.edges;
-  //
-  // const box = view.xdg_toplevel.base.geometry;
-  //
-  // const border_x = view.geometry.x + box.x + if (event.edges.right) box.width else 0;
-  // const border_y = view.geometry.y + box.y + if (event.edges.bottom) box.height else 0;
-  // server.cursor.grab_x = server.cursor.wlr_cursor.x - @as(f64, @floatFromInt(border_x));
-  // server.cursor.grab_y = server.cursor.wlr_cursor.y - @as(f64, @floatFromInt(border_y));
-  //
-  // server.cursor.grab_box = box;
-  // server.cursor.grab_box.x += view.geometry.x;
-  // server.cursor.grab_box.y += view.geometry.y;
+  const view: *View = @fieldParentPtr("request_resize", listener);
+  server.events.exec("ViewRequestResize", .{view.id});
 }
 
 fn handleAckConfigure(
@@ -265,30 +250,26 @@ fn handleRequestFullscreen(
   listener: *wl.Listener(void)
 ) void {
   const view: *View = @fieldParentPtr("request_fullscreen", listener);
-  _ = view;
-  std.log.err("Unimplemented request fullscreen", .{});
+  server.events.exec("ViewRequestFullscreen", .{view.id});
 }
 
 fn handleRequestMinimize(
   listener: *wl.Listener(void)
 ) void {
-  const view: *View = @fieldParentPtr("request_fullscreen", listener);
-  _ = view;
-  std.log.err("Unimplemented request minimize", .{});
+  const view: *View = @fieldParentPtr("request_minimize", listener);
+  server.events.exec("ViewRequestFullscreen", .{view.id});
 }
 
 fn handleSetAppId(
   listener: *wl.Listener(void)
 ) void {
   const view: *View = @fieldParentPtr("set_app_id", listener);
-  _ = view;
-  std.log.err("Unimplemented set appid", .{});
+  server.events.exec("ViewAppIdUpdate", .{view.id});
 }
 
 fn handleSetTitle(
   listener: *wl.Listener(void)
 ) void {
   const view: *View = @fieldParentPtr("set_title", listener);
-  _ = view;
-  std.log.err("Unimplemented set title", .{});
+  server.events.exec("ViewTitleUpdate", .{view.id});
 }

@@ -1,10 +1,13 @@
 const Output = @This();
 
 const wl = @import("wayland").server.wl;
+const zwlr = @import("wayland").server.zwlr;
 const wlr = @import("wlroots");
 const std = @import("std");
-const Server = @import("server.zig");
-const Utils = @import("utils.zig");
+
+const Server = @import("Server.zig");
+const Utils =  @import("Utils.zig");
+const View =   @import("View.zig");
 
 const posix = std.posix;
 const gpa = std.heap.c_allocator;
@@ -15,11 +18,22 @@ id: u64,
 
 wlr_output: *wlr.Output,
 state: wlr.Output.State,
+tree: *wlr.SceneTree,
 scene_output: *wlr.SceneOutput,
+
+layers: struct {
+  background: *wlr.SceneTree,
+  bottom: *wlr.SceneTree,
+  content: *wlr.SceneTree,
+  top: *wlr.SceneTree,
+  fullscreen: *wlr.SceneTree,
+  overlay: *wlr.SceneTree
+},
 
 frame: wl.Listener(*wlr.Output) = .init(handleFrame),
 request_state: wl.Listener(*wlr.Output.event.RequestState) = .init(handleRequestState),
 destroy: wl.Listener(*wlr.Output) = .init(handleDestroy),
+
 
 // The wlr.Output should be destroyed by the caller on failure to trigger cleanup.
 pub fn init(wlr_output: *wlr.Output) ?*Output {
@@ -31,6 +45,15 @@ pub fn init(wlr_output: *wlr.Output) ?*Output {
     .focused = false,
     .id = @intFromPtr(wlr_output),
     .wlr_output = wlr_output,
+    .tree = try server.root.scene.tree.createSceneTree(),
+    .layers = .{
+      .background = try self.tree.createSceneTree(),
+      .bottom = try self.tree.createSceneTree(),
+      .content = try self.tree.createSceneTree(),
+      .top = try self.tree.createSceneTree(),
+      .fullscreen = try self.tree.createSceneTree(),
+      .overlay = try self.tree.createSceneTree(),
+    },
     .scene_output = try server.root.scene.createSceneOutput(wlr_output),
     .state = wlr.Output.State.init()
   };
@@ -85,6 +108,72 @@ pub fn setFocused(self: *Output) void {
 
   server.seat.focused_output = self;
   self.focused = true;
+}
+
+pub fn configureLayers(self: *Output) void {
+  var output_box: wlr.Box = .{
+    .x = 0,
+    .y = 0,
+    .width = undefined,
+    .height = undefined,
+  };
+  self.wlr_output.effectiveResolution(&output_box.width, &output_box.height);
+
+  // Should calculate usable area here for LUA view positioning
+
+  for ([_]zwlr.LayerShellV1.Layer{ .background, .bottom, .top, .overlay }) |layer| {
+    const tree = blk: {
+      const trees = [_]*wlr.SceneTree{
+          self.layers.background,
+          self.layers.bottom,
+          self.layers.top,
+          self.layers.overlay,
+      };
+      break :blk trees[@intCast(@intFromEnum(layer))];
+    };
+
+    var it = tree.children.iterator(.forward);
+    while(it.next()) |node| {
+      if(node.data == null) continue;
+
+      const layer_surface: *wlr.LayerSurfaceV1 = @ptrCast(@alignCast(node.data.?));
+      _ = layer_surface.configure(@intCast(output_box.width), @intCast(output_box.height));
+    }
+  }
+}
+
+const ViewAtResult = struct {
+    view: *View,
+    surface: *wlr.Surface,
+    sx: f64,
+    sy: f64,
+};
+
+pub fn viewAt(self: *Output, lx: f64, ly: f64) ?ViewAtResult {
+  var sx: f64 = undefined;
+  var sy: f64 = undefined;
+
+  if(self.layers.content.node.at(lx, ly, &sx, &sy)) |node| {
+    if (node.type != .buffer) return null;
+    const scene_buffer = wlr.SceneBuffer.fromNode(node);
+    const scene_surface = wlr.SceneSurface.tryFromBuffer(scene_buffer) orelse return null;
+
+    var it: ?*wlr.SceneTree = node.parent;
+
+    while (it) |n| : (it = n.node.parent) {
+      if (n.node.data == null) continue;
+
+      const view: *View = @ptrCast(@alignCast(n.node.data.?));
+
+      return ViewAtResult{
+        .view = view,
+        .surface = scene_surface.surface,
+        .sx = sx,
+        .sy = sy,
+      };
+    }
+  }
+  return null;
 }
 
 // --------- WlrOutput Event Handlers ---------

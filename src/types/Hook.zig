@@ -7,7 +7,7 @@ const xkb = @import("xkbcommon");
 const wlr = @import("wlroots");
 const zlua = @import("zlua");
 
-const Event = @import("events.zig");
+const Event = @import("Events.zig");
 const Lua = &@import("../main.zig").lua;
 
 events: std.ArrayList([]const u8), // a list of events
