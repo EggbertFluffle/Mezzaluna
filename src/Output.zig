@@ -8,6 +8,8 @@ const std = @import("std");
 const Server = @import("Server.zig");
 const Utils =  @import("Utils.zig");
 const View =   @import("View.zig");
+const LayerSurface = @import("LayerSurface.zig");
+const SceneNodeData = @import("SceneNodeData.zig");
 
 const posix = std.posix;
 const gpa = std.heap.c_allocator;
@@ -222,4 +224,38 @@ fn handleDestroy(
   server.root.output_layout.remove(output.wlr_output);
 
   gpa.destroy(output);
+}
+
+pub fn arrangeLayers(self: *Output) void {
+  var full_box: wlr.Box = .{
+    .x = 0,
+    .y = 0,
+    .width = undefined,
+    .height = undefined,
+  };
+  self.wlr_output.effectiveResolution(&full_box.width, &full_box.height);
+
+  inline for (@typeInfo(zwlr.LayerShellV1.Layer).@"enum".fields) |comptime_layer| {
+    const layer: *wlr.SceneTree = @field(self.layers, comptime_layer.name);
+    var it = layer.children.safeIterator(.forward);
+    while (it.next()) |node| {
+      if (@as(?*SceneNodeData, @alignCast(@ptrCast(node.data)))) |node_data| {
+        const layer_surface = node_data.data.layer_surface;
+
+        if (!layer_surface.wlr_layer_surface.initialized) continue;
+
+        // TEST: river seems to try and prevent clients from taking an
+        // exclusive size greater than half the screen by killing them. Do we
+        // need to? Clients can do quite a bit of nasty stuff and taking
+        // exclusive focus isn't even that bad.
+
+        layer_surface.scene_layer_surface.configure(&full_box, &full_box);
+
+        // TEST: are these calls useless?
+        // const x = layer_surface.scene_layer_surface.tree.node.x;
+        // const y = layer_surface.scene_layer_surface.tree.node.y;
+        // layer_surface.scene_layer_surface.tree.node.setPosition(x, y);
+      }
+    }
+  }
 }

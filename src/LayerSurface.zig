@@ -6,6 +6,7 @@ const wlr = @import("wlroots");
 
 const Utils = @import("Utils.zig");
 const Output = @import("Output.zig");
+const SceneNodeData = @import("SceneNodeData.zig");
 
 const gpa = std.heap.c_allocator;
 const server = &@import("main.zig").server;
@@ -44,6 +45,10 @@ pub fn init(wlr_layer_surface: *wlr.LayerSurfaceV1) *LayerSurface {
     };
   }
 
+  try SceneNodeData.setData(
+      &self.scene_layer_surface.tree.node,
+      .{ .layer_surface = self },
+  );
   self.wlr_layer_surface.surface.data = &self.scene_layer_surface.tree.node;
 
   self.wlr_layer_surface.events.destroy.add(&self.destroy);
@@ -88,10 +93,12 @@ fn handleMap(
   std.log.debug("Unimplemented layer surface map", .{});
 }
 
-fn handleUnmap(
-  _: *wl.Listener(void)
-) void {
-  std.log.debug("Unimplemented layer surface unmap", .{});
+fn handleUnmap(listener: *wl.Listener(void)) void {
+  const layer_surface: *LayerSurface = @fieldParentPtr("unmap", listener);
+
+  // FIXME: this crashes mez when killing mez
+  layer_surface.output.arrangeLayers();
+  layer_surface.deinit();
 }
 
 fn handleCommit(
@@ -100,10 +107,6 @@ fn handleCommit(
 ) void {
   const layer_surface: *LayerSurface = @fieldParentPtr("commit", listener);
 
-  var width: c_int = undefined;
-  var height: c_int = undefined;
-  layer_surface.output.wlr_output.effectiveResolution(&width, &height);
-  _ = layer_surface.wlr_layer_surface.configure(@intCast(width), @intCast(height));
-
-  layer_surface.scene_layer_surface.tree.node.reparent(layer_surface.output.layers.background);
+  if (!layer_surface.wlr_layer_surface.initial_commit) return;
+  layer_surface.output.arrangeLayers();
 }
