@@ -59,15 +59,6 @@ pub fn init(wlr_layer_surface: *wlr.LayerSurfaceV1) *LayerSurface {
   return self;
 }
 
-pub fn allowKeyboard(self: *LayerSurface) void {
-  if(self.wlr_layer_surface.output == null or self.wlr_layer_surface.output.?.data == null) {
-    std.log.err("Layer surface does not have an associated output");
-  }
-
-  const output: *Output = @ptrCast(@alignCast(self.wlr_layer_surface.output.?.data.?));
-  output.setFocused();
-}
-
 pub fn deinit(self: *LayerSurface) void {
   self.destroy.link.remove();
   self.map.link.remove();

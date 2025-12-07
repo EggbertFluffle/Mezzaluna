@@ -10,7 +10,6 @@ end
 mez.path.config = mez.fs.joinpath(env_conf, "mez", "init.lua")
 package.path = package.path..";"..mez.fs.joinpath(env_conf, "mez", "lua", "?.lua")
 
-
 local master = function()
   local config = {
     tag_count = 5,
@@ -145,8 +144,13 @@ local master = function()
 
   mez.input.add_keymap("alt", "p", {
     press = function()
-      -- mez.api.spawn("echo 'the goods' | wmenu")
-      mez.api.spawn("swaybg -c \"#ff0000\"")
+      mez.api.spawn("wmenu-run")
+    end,
+  })
+
+  mez.input.add_keymap("alt", "b", {
+    press = function()
+      mez.api.spawn("swaybg -i ~/Images/wallpapers/void/gruv_void.png")
     end,
   })
 
