@@ -128,6 +128,8 @@ pub fn init(self: *Server) void {
 
   // LayerShell events
   self.layer_shell.events.new_surface.add(&self.new_layer_surface);
+
+  self.events.exec("ServerStartPost", .{});
 }
 
 pub fn deinit(self: *Server) noreturn {

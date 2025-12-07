@@ -10,11 +10,6 @@ end
 mez.path.config = mez.fs.joinpath(env_conf, "mez", "init.lua")
 package.path = package.path..";"..mez.fs.joinpath(env_conf, "mez", "lua", "?.lua")
 
-mez.hook.add("ViewPointerMotion", {
-  callback = function (view_id, cursor_x, cursor_y)
-    mez.view.set_focused(view_id)
-  end
-})
 
 local master = function()
   local config = {
@@ -92,6 +87,13 @@ local master = function()
     })
   end
 
+  mez.hook.add("ServerStartPost", {
+    callback = function()
+      print("ServerStartPost")
+      print("Doesn't do anything :(")
+    end
+  })
+
   mez.hook.add("ViewMapPre", {
     callback = function(v)
       if ctx.tags[ctx.tag_id].master == nil then
@@ -135,9 +137,16 @@ local master = function()
     end
   })
 
+  mez.hook.add("ViewPointerMotion", {
+    callback = function (view_id, cursor_x, cursor_y)
+      mez.view.set_focused(view_id)
+    end
+  })
+
   mez.input.add_keymap("alt", "p", {
     press = function()
-      print("no luancher")
+      -- mez.api.spawn("echo 'the goods' | wmenu")
+      mez.api.spawn("swaybg -c \"#ff0000\"")
     end,
   })
 
