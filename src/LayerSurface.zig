@@ -70,6 +70,18 @@ pub fn deinit(self: *LayerSurface) void {
   gpa.destroy(self);
 }
 
+pub fn allowKeyboard(self: *LayerSurface) void {
+  const keyboard_interactive = self.wlr_layer_surface.current.keyboard_interactive;
+  if(keyboard_interactive == .exclusive or keyboard_interactive == .on_demand) {
+    server.seat.wlr_seat.keyboardNotifyEnter(
+      self.wlr_layer_surface.surface,
+      &server.seat.wlr_seat.keyboard_state.keyboard.?.keycodes,
+      null
+    );
+  }
+}
+
+// --------- LayerSurface event handlers ---------
 fn handleDestroy(
   listener: *wl.Listener(*wlr.LayerSurfaceV1),
   _: *wlr.LayerSurfaceV1
@@ -79,9 +91,10 @@ fn handleDestroy(
 }
 
 fn handleMap(
-  _: *wl.Listener(void)
+  listener: *wl.Listener(void)
 ) void {
-  std.log.debug("Unimplemented layer surface map", .{});
+  const layer: *LayerSurface = @fieldParentPtr("map", listener);
+  layer.allowKeyboard();
 }
 
 fn handleUnmap(listener: *wl.Listener(void)) void {
