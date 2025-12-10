@@ -53,8 +53,26 @@ remote: *RemoteLua,
     .destroy => remote_lua_v1.destroy(),
     .push_lua => |req| {
       const chunk = std.mem.sliceTo(req.lua_chunk, 0);
-      remote.L.loadString(chunk) catch catchLuaFail(remote);
-      remote.L.protectedCall(.{}) catch catchLuaFail(remote);
+      // TODO: this could be a lot smarter, we don't want to add return to a
+      // statement which already has return infront of it.
+      const str = std.mem.concat(gpa, u8, &[_][]const u8{ "return ", chunk }) catch {
+        return catchLuaFail(remote);
+      };
+
+      const w_sentinel = gpa.allocSentinel(u8, str.len, 0) catch Utils.oomPanic();
+      defer gpa.free(w_sentinel);
+      std.mem.copyForwards(u8, w_sentinel, str[0..str.len]);
+
+      remote.L.loadString(w_sentinel) catch catchLuaFail(remote);
+      remote.L.protectedCall(.{
+        .results = zlua.mult_return,
+      }) catch catchLuaFail(remote);
+
+      var i: i32 = 1;
+      while (i < remote.L.getTop() + 1) : (i += 1) {
+        sendNewLogEntry(remote.L.toString(-1) catch return catchLuaFail(remote));
+        remote.L.pop(-1);
+      }
     },
   }
 }
@@ -70,7 +88,7 @@ fn handleDestroy(_: *mez.RemoteLuaV1, remote_lua: *RemoteLua) void {
 }
 
 fn catchLuaFail(remote: *RemoteLua) void {
-  const err_txt: []const u8 = remote.L.toString(-1) catch unreachable;
+  const err_txt: []const u8 = remote.L.toString(-1) catch "zig error";
   const txt = std.mem.concat(gpa, u8, &[_][]const u8{ "repl: ", err_txt }) catch Utils.oomPanic();
   defer gpa.free(txt);
 
