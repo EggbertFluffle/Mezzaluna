@@ -44,7 +44,7 @@ cursor: Cursor,
 keymaps: std.AutoHashMap(u64, Keymap),
 hooks: std.ArrayList(*Hook),
 events: Events,
-remote_lua_clients: std.ArrayList(*RemoteLua),
+remote_lua_clients: std.DoublyLinkedList,
 
 // Backend listeners
 new_input: wl.Listener(*wlr.InputDevice) = .init(handleNewInput),
@@ -103,7 +103,7 @@ pub fn init(self: *Server) void {
     .keymaps = .init(gpa),
     .hooks = try .initCapacity(gpa, 10), // TODO: choose how many slots to start with
     .events = try .init(gpa),
-    .remote_lua_clients = try .initCapacity(gpa, 0),
+    .remote_lua_clients = .{},
   };
 
   self.renderer.initServer(wl_server) catch {
@@ -137,8 +137,6 @@ pub fn deinit(self: *Server) noreturn {
   self.new_xdg_toplevel.link.remove();
   self.new_xdg_popup.link.remove();
   self.new_xdg_toplevel_decoration.link.remove();
-
-  self.remote_lua_clients.deinit(gpa);
 
   self.seat.deinit();
   self.root.deinit();
