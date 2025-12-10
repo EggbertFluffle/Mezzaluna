@@ -55,15 +55,10 @@ remote: *RemoteLua,
       const chunk = std.mem.sliceTo(req.lua_chunk, 0);
       // TODO: this could be a lot smarter, we don't want to add return to a
       // statement which already has return infront of it.
-      const str = std.mem.concat(gpa, u8, &[_][]const u8{ "return ", chunk }) catch {
-        return catchLuaFail(remote);
-      };
+      const str = std.mem.concatWithSentinel(gpa, u8, &[_][]const u8{ "return ", chunk }, 0) catch return catchLuaFail(remote);
+      defer gpa.free(str);
 
-      const w_sentinel = gpa.allocSentinel(u8, str.len, 0) catch Utils.oomPanic();
-      defer gpa.free(w_sentinel);
-      std.mem.copyForwards(u8, w_sentinel, str[0..str.len]);
-
-      remote.L.loadString(w_sentinel) catch catchLuaFail(remote);
+      remote.L.loadString(str) catch catchLuaFail(remote);
       remote.L.protectedCall(.{
         .results = zlua.mult_return,
       }) catch catchLuaFail(remote);
@@ -89,14 +84,9 @@ fn handleDestroy(_: *mez.RemoteLuaV1, remote_lua: *RemoteLua) void {
 
 fn catchLuaFail(remote: *RemoteLua) void {
   const err_txt: []const u8 = remote.L.toString(-1) catch "zig error";
-  const txt = std.mem.concat(gpa, u8, &[_][]const u8{ "repl: ", err_txt }) catch Utils.oomPanic();
+  const txt = std.mem.concatWithSentinel(gpa, u8, &[_][]const u8{ "repl: ", err_txt }, 0) catch Utils.oomPanic();
   defer gpa.free(txt);
 
-  // must add the sentinel back to pass the data over the wire
-  const w_sentinel = gpa.allocSentinel(u8, txt.len, 0) catch Utils.oomPanic();
-  defer gpa.free(w_sentinel);
-  std.mem.copyForwards(u8, w_sentinel, txt[0..txt.len]);
-
-  sendNewLogEntry(w_sentinel);
+  sendNewLogEntry(txt);
   return;
 }
