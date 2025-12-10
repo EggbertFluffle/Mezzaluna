@@ -49,24 +49,39 @@ remote_lua_v1: *mez.RemoteLuaV1,
 request: mez.RemoteLuaV1.Request,
 remote: *RemoteLua,
 ) void {
+  const L = remote.L;
   switch (request) {
     .destroy => remote_lua_v1.destroy(),
     .push_lua => |req| {
-      const chunk = std.mem.sliceTo(req.lua_chunk, 0);
-      // TODO: this could be a lot smarter, we don't want to add return to a
-      // statement which already has return infront of it.
-      const str = std.mem.concatWithSentinel(gpa, u8, &[_][]const u8{ "return ", chunk }, 0) catch return catchLuaFail(remote);
+      const chunk: [:0]const u8 = std.mem.sliceTo(req.lua_chunk, 0);
+
+      const str = std.mem.concatWithSentinel(gpa, u8, &[_][]const u8{
+        "return ",
+        chunk,
+        ";",
+      }, 0) catch return catchLuaFail(remote);
       defer gpa.free(str);
 
-      remote.L.loadString(str) catch catchLuaFail(remote);
-      remote.L.protectedCall(.{
-        .results = zlua.mult_return,
-      }) catch catchLuaFail(remote);
+      zlua.Lua.loadBuffer(L, str, "=repl", zlua.Mode.text) catch {
+        L.pop(L.getTop());
+        L.loadString(chunk) catch {
+          catchLuaFail(remote);
+          L.pop(-1);
+        };
+        return;
+      };
+
+      L.protectedCall(.{ .results = zlua.mult_return, }) catch {
+        catchLuaFail(remote);
+        L.pop(1);
+      };
 
       var i: i32 = 1;
-      while (i < remote.L.getTop() + 1) : (i += 1) {
-        sendNewLogEntry(remote.L.toString(-1) catch return catchLuaFail(remote));
-        remote.L.pop(-1);
+      const nresults = L.getTop();
+      while (i <= nresults) : (i += 1) {
+        // TODO: support lua5.1 and luajit?
+        sendNewLogEntry(L.toStringEx(i));
+        L.pop(-1);
       }
     },
   }
@@ -83,10 +98,6 @@ fn handleDestroy(_: *mez.RemoteLuaV1, remote_lua: *RemoteLua) void {
 }
 
 fn catchLuaFail(remote: *RemoteLua) void {
-  const err_txt: []const u8 = remote.L.toString(-1) catch "zig error";
-  const txt = std.mem.concatWithSentinel(gpa, u8, &[_][]const u8{ "repl: ", err_txt }, 0) catch Utils.oomPanic();
-  defer gpa.free(txt);
-
-  sendNewLogEntry(txt);
-  return;
+  const err: [:0]const u8 = remote.L.toStringEx(-1);
+  sendNewLogEntry(std.mem.sliceTo(err, 0));
 }
