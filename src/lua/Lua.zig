@@ -45,49 +45,53 @@ fn loadConfigDir(self: *Lua) !void {
   try self.state.doFile(path);
 }
 
+pub fn openLibs(self: *zlua.Lua) void {
+  {
+    self.newTable();
+    defer _ = self.setGlobal("mez");
+    {
+      self.newTable();
+      defer _ = self.setField(-2, "path");
+    }
+    {
+      const fs_funcs = zlua.fnRegsFromType(Fs);
+      self.newLib(fs_funcs);
+      self.setField(-2, "fs");
+    }
+    {
+      const input_funcs = zlua.fnRegsFromType(Input);
+      self.newLib(input_funcs);
+      self.setField(-2, "input");
+    }
+    {
+      const hook_funcs = zlua.fnRegsFromType(Hook);
+      self.newLib(hook_funcs);
+      self.setField(-2, "hook");
+    }
+    {
+      const api_funcs = zlua.fnRegsFromType(Api);
+      self.newLib(api_funcs);
+      self.setField(-2, "api");
+    }
+    {
+      const view_funcs = zlua.fnRegsFromType(View);
+      self.newLib(view_funcs);
+      self.setField(-2, "view");
+    }
+    {
+      const output_funcs = zlua.fnRegsFromType(Output);
+      self.newLib(output_funcs);
+      self.setField(-2, "output");
+    }
+  }
+}
+
 pub fn init(self: *Lua) !void {
   self.state = try zlua.Lua.init(gpa);
   errdefer self.state.deinit();
   self.state.openLibs();
 
-  {
-    self.state.newTable();
-    defer _ = self.state.setGlobal("mez");
-    {
-      self.state.newTable();
-      defer _ = self.state.setField(-2, "path");
-    }
-    {
-      const fs_funcs = zlua.fnRegsFromType(Fs);
-      self.state.newLib(fs_funcs);
-      self.state.setField(-2, "fs");
-    }
-    {
-      const input_funcs = zlua.fnRegsFromType(Input);
-      self.state.newLib(input_funcs);
-      self.state.setField(-2, "input");
-    }
-    {
-      const hook_funcs = zlua.fnRegsFromType(Hook);
-      self.state.newLib(hook_funcs);
-      self.state.setField(-2, "hook");
-    }
-    {
-      const api_funcs = zlua.fnRegsFromType(Api);
-      self.state.newLib(api_funcs);
-      self.state.setField(-2, "api");
-    }
-    {
-      const view_funcs = zlua.fnRegsFromType(View);
-      self.state.newLib(view_funcs);
-      self.state.setField(-2, "view");
-    }
-    {
-      const output_funcs = zlua.fnRegsFromType(Output);
-      self.state.newLib(output_funcs);
-      self.state.setField(-2, "output");
-    }
-  }
+  openLibs(self.state);
 
   loadRuntimeDir(self) catch |err| {
     if (err == error.LuaRuntime) {

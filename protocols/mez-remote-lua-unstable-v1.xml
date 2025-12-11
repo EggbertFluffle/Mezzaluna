@@ -1,0 +1,89 @@
+<?xml version="1.0" encoding="utf-8"?>
+<protocol name="zmez_remote_lua_v1">
+  <copyright>
+    Copyright © 2025 mezzaluna team
+
+    Permission to use, copy, modify, and/or distribute this software for any
+    purpose with or without fee is hereby granted, provided that the above
+    copyright notice and this permission notice appear in all copies.
+
+    THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+    WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+    MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+    ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+    WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+    ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+    OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+  </copyright>
+  <description summary="Remote lua interface for Mezzaluna">
+    This protocol allows clients to receive lua errors from mez and execute lua
+    on a running mez server with the lua mez api.
+
+    Warning! The protocol described in this file is experimental and backward
+    incompatible changes may be made. Backward compatible changes may be added
+    together with the corresponding interface version bump. Backward
+    incompatible changes are done by bumping the version number in the protocol
+    and interface names and resetting the interface version. Once the protocol
+    is to be declared stable, the 'z' prefix and the version number in the
+    protocol and interface names are removed and the interface version number
+    is reset.
+  </description>
+
+  <interface name="zmez_remote_lua_manager_v1" version="2">
+    <description summary="manage mez layout objects">
+      A global factory for zmez_remote_lua_v1 objects.
+    </description>
+
+    <request name="destroy" type="destructor">
+      <description summary="destroy the mez_remote_lua_manager object">
+        This request indicates that the client will not use the
+        mez_remote_lua_manager object any more. Objects that have been created
+        through this instance are not affected.
+      </description>
+    </request>
+
+    <request name="get_remote">
+      <description summary="create a mez_remote_lua_v1 object">
+        This creates a new mez_remote_lua_v1 object.
+        All lua related communication is done through this interface.
+      </description>
+      <arg name="id" type="new_id" interface="zmez_remote_lua_v1"/>
+    </request>
+  </interface>
+
+  <interface name="zmez_remote_lua_v1" version="2">
+    <description summary="receive lua logs and send lua code to execute">
+      This interface allows clients to receive lua logs from the compositor.
+      Additionally it allow for the client to send lua code for the compositor
+      to execute.
+    </description>
+
+    <request name="destroy" type="destructor">
+      <description summary="destroy the mez_remote_lua_v1 object">
+        This request indicates that the client will not use the
+        mez_remote_lua_v1 object any more.
+      </description>
+    </request>
+
+    <event name="new_log_entry">
+      <description summary="the compositor has a new log entry">
+        The compositor sends this event to inform the client that it has a new
+        log entry for the client.
+
+        The text contains the lua log information the server generates when
+        executing lua code. The server does not hold logs from before the client
+        connect, and therefore you will only recieve log information from the
+        point that you start listening for them and on.
+      </description>
+      <arg name="text" type="string" summary="the log text"/>
+    </event>
+
+    <request name="push_lua">
+      <description summary="propose dimensions of the next view">
+        This request sends stringified lua code for the server to run.
+        The output, if any, will be sent through the new_log_entry event.
+      </description>
+      <arg name="lua_chunk" type="string" summary="stringified lua code"/>
+    </request>
+  </interface>
+</protocol>

@@ -27,7 +27,9 @@ pub fn build(b: *std.Build) void {
   scanner.addSystemProtocol("stable/tablet/tablet-v2.xml");
   scanner.addSystemProtocol("unstable/xdg-decoration/xdg-decoration-unstable-v1.xml");
   scanner.addCustomProtocol(b.path("protocols/wlr-layer-shell-unstable-v1.xml"));
+  scanner.addCustomProtocol(b.path("protocols/mez-remote-lua-unstable-v1.xml"));
 
+  scanner.generate("zmez_remote_lua_manager_v1", 1);
   scanner.generate("wl_compositor", 6);
   scanner.generate("wl_subcompositor", 1);
   scanner.generate("wl_shm", 1);

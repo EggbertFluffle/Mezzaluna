@@ -8,6 +8,7 @@ const wlr = @import("wlroots");
 const zlua = @import("zlua");
 
 const Event = @import("Events.zig");
+const RemoteLua = @import("../RemoteLua.zig");
 const Lua = &@import("../main.zig").lua;
 
 events: std.ArrayList([]const u8), // a list of events
@@ -39,7 +40,7 @@ pub fn callback(self: *const Hook, args: anytype) void {
   }
 
   Lua.state.protectedCall(.{ .args = i }) catch {
-    // TODO: add a callback to remote lua when that gets merged
+    RemoteLua.sendNewLogEntry(Lua.state.toString(-1) catch unreachable);
   };
   Lua.state.pop(-1);
 }
