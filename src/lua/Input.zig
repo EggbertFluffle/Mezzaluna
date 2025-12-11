@@ -1,4 +1,4 @@
-const Api = @This();
+const Input = @This();
 
 const std = @import("std");
 const zlua = @import("zlua");
