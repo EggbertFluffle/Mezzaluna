@@ -16,33 +16,60 @@ const gpa = std.heap.c_allocator;
 
 state: *zlua.Lua,
 
-fn loadRuntimeDir(self: *Lua) !void {
-  const tmppath = try std.fs.path.join(gpa, &[_][]const u8{
+pub fn loadRuntimeDir(self: *zlua.Lua) !void {
+  const path_dir = try std.fs.path.joinZ(gpa, &[_][]const u8{
     config.runtime_path_prefix,
     "share",
     "mezzaluna",
+  });
+  defer gpa.free(path_dir);
+
+  {
+    _ = try self.getGlobal("mez");
+    _ = self.getField(-1, "path");
+    defer self.pop(2);
+    _ = self.pushString(path_dir);
+    self.setField(-2, "runtime");
+  }
+
+  const path_full = try std.fs.path.joinZ(gpa, &[_][]const u8{
+    path_dir,
     "init.lua",
   });
-  const path = try gpa.dupeZ(u8, tmppath);
+  defer gpa.free(path_full);
 
-  self.state.doFile(path) catch {
-    const err = try self.state.toString(-1);
+  self.doFile(path_full) catch {
+    const err = try self.toString(-1);
     std.log.debug("Failed to run lua file: {s}", .{err});
   };
 }
 
-fn loadConfigDir(self: *Lua) !void {
+fn loadBaseConfig(self: *zlua.Lua) !void {
+  const lua_path = "mez.path.base_config";
+  if (!Bridge.getNestedField(self, @constCast(lua_path[0..]))) {
+    std.log.err("Base config path not found. is your runtime dir setup?", .{});
+    return;
+  }
+  const path = self.toString(-1) catch |err| {
+    std.log.err("Failed to pop the base config path from the lua stack. {}", .{err});
+    return;
+  };
+  self.pop(-1);
+  try self.doFile(path);
+}
+
+fn loadConfigDir(self: *zlua.Lua) !void {
   const lua_path = "mez.path.config";
   if (!Bridge.getNestedField(self, @constCast(lua_path[0..]))) {
     std.log.err("Config path not found. is your runtime dir setup?", .{});
     return;
   }
-  const path = self.state.toString(-1) catch |err| {
+  const path = self.toString(-1) catch |err| {
     std.log.err("Failed to pop the config path from the lua stack. {}", .{err});
     return;
   };
-  self.state.pop(-1);
-  try self.state.doFile(path);
+  self.pop(-1);
+  try self.doFile(path);
 }
 
 pub fn openLibs(self: *zlua.Lua) void {
@@ -93,16 +120,16 @@ pub fn init(self: *Lua) !void {
 
   openLibs(self.state);
 
-  loadRuntimeDir(self) catch |err| {
-    if (err == error.LuaRuntime) {
-      std.log.warn("{s}", .{try self.state.toString(-1)});
-    }
+  loadRuntimeDir(self.state) catch |err| if (err == error.LuaRuntime) {
+    std.log.warn("{s}", .{try self.state.toString(-1)});
   };
 
-  loadConfigDir(self) catch |err| {
-    if (err == error.LuaRuntime) {
-      std.log.warn("{s}", .{try self.state.toString(-1)});
-    }
+  loadBaseConfig(self.state) catch |err| if (err == error.LuaRuntime) {
+    std.log.warn("{s}", .{try self.state.toString(-1)});
+  };
+
+  loadConfigDir(self.state) catch |err| if (err == error.LuaRuntime) {
+    std.log.warn("{s}", .{try self.state.toString(-1)});
   };
 
   std.log.debug("Loaded lua", .{});
