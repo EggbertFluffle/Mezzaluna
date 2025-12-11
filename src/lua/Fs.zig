@@ -4,6 +4,7 @@ const std = @import("std");
 const zlua = @import("zlua");
 
 const Lua = @import("Lua.zig");
+const Utils =  @import("../Utils.zig");
 
 const gpa = std.heap.c_allocator;
 
@@ -17,9 +18,7 @@ pub fn joinpath(L: *zlua.Lua) i32 {
     return 0;
   }
 
-  var paths = std.ArrayList([:0]const u8).initCapacity(gpa, @intCast(nargs)) catch {
-    return 0;
-  };
+  var paths = std.ArrayList([:0]const u8).initCapacity(gpa, @intCast(nargs)) catch Utils.oomPanic();
   defer paths.deinit(gpa);
 
   var i: u8 = 1;
@@ -30,17 +29,12 @@ pub fn joinpath(L: *zlua.Lua) i32 {
     }
 
     const partial_path = L.toString(i) catch unreachable;
-    paths.append(gpa, partial_path) catch {
-      // TODO: tell lua?
-      return 0;
-    };
+    paths.append(gpa, partial_path) catch Utils.oomPanic();
   }
 
-  const final_path: []const u8 = std.fs.path.join(gpa, paths.items) catch {
-    // TODO: tell lua?
-    return 0;
-  };
-  _ = L.pushString(final_path);
+  const final_path: []const u8 = std.fs.path.join(gpa, paths.items) catch Utils.oomPanic();
+  defer gpa.free(final_path);
 
+  _ = L.pushString(final_path);
   return 1;
 }

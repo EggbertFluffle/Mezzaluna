@@ -2,6 +2,8 @@ const std = @import("std");
 const zlua = @import("zlua");
 const wlr = @import("wlroots");
 
+const Utils =  @import("../Utils.zig");
+
 const gpa = std.heap.c_allocator;
 
 const env_map = &@import("../main.zig").env_map;
@@ -14,8 +16,9 @@ pub fn spawn(L: *zlua.Lua) i32 {
 
   var child = std.process.Child.init(&[_][]const u8{ "/bin/sh", "-c", cmd }, gpa);
   child.env_map = env_map;
-  child.spawn() catch {
-    L.raiseErrorStr("Unable to spawn process", .{}); // TODO: Give more descriptive error
+  child.spawn() catch |err| switch (err) {
+    error.OutOfMemory => Utils.oomPanic(),
+    else => L.raiseErrorStr("Unable to spawn process child process", .{}),
   };
 
   L.pushNil();

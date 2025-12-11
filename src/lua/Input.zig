@@ -41,17 +41,13 @@ pub fn add_keymap(L: *zlua.Lua) i32 {
   _ = L.pushString("press");
   _ = L.getTable(3);
   if (L.isFunction(-1)) {
-    keymap.options.lua_press_ref_idx = L.ref(zlua.registry_index) catch {
-      L.raiseErrorStr("Lua error check your config", .{}); // TODO: Insert more descrptive errors
-    };
+    keymap.options.lua_press_ref_idx = L.ref(zlua.registry_index) catch Utils.oomPanic();
   }
 
   _ = L.pushString("release");
   _ = L.getTable(3);
   if (L.isFunction(-1)) {
-    keymap.options.lua_release_ref_idx = L.ref(zlua.registry_index) catch {
-      L.raiseErrorStr("Lua error check your config", .{}); // TODO: Insert more descrptive errors
-    };
+    keymap.options.lua_release_ref_idx = L.ref(zlua.registry_index) catch Utils.oomPanic();
   }
 
   _ = L.pushString("repeat");

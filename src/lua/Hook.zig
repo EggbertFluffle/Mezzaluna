@@ -39,9 +39,7 @@ pub fn add(L: *zlua.Lua) i32 {
   _ = L.pushString("callback");
   _ = L.getTable(2);
   if (L.isFunction(-1)) {
-    hook.options.lua_cb_ref_idx = L.ref(zlua.registry_index) catch {
-      L.raiseErrorStr("Lua error check your config", .{}); // TODO: Give more descriptive error
-    };
+    hook.options.lua_cb_ref_idx = try L.ref(zlua.registry_index);
   }
 
   try server.hooks.append(gpa, hook);
