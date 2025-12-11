@@ -41,6 +41,8 @@ destroy: wl.Listener(*wlr.Output) = .init(handleDestroy),
 pub fn init(wlr_output: *wlr.Output) ?*Output {
   errdefer Utils.oomPanic();
 
+  server.events.exec("OutputInitPre", .{});
+
   const self = try gpa.create(Output);
 
   self.* = .{
@@ -88,10 +90,14 @@ pub fn init(wlr_output: *wlr.Output) ?*Output {
 
   wlr_output.data = self;
 
+  server.events.exec("OutputInitPost", .{self.id});
+
   return self;
 }
 
 pub fn deinit(self: *Output) void {
+  server.events.exec("OutputDeinitPre", .{self.id});
+
   self.frame.link.remove();
   self.request_state.link.remove();
   self.destroy.link.remove();
@@ -99,6 +105,8 @@ pub fn deinit(self: *Output) void {
   self.state.finish();
 
   self.wlr_output.destroy();
+
+  server.events.exec("OutputDeinitPost", .{});
 
   gpa.destroy(self);
 }
