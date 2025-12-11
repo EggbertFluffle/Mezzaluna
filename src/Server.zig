@@ -120,6 +120,17 @@ pub fn init(self: *Server) void {
 
   _ = try wlr.Subcompositor.create(self.wl_server);
   _ = try wlr.DataDeviceManager.create(self.wl_server);
+  _ = try wlr.ExportDmabufManagerV1.create(self.wl_server);
+  _ = try wlr.Viewporter.create(self.wl_server);
+  _ = try wlr.Presentation.create(self.wl_server, self.backend, 2);
+  _ = try wlr.ScreencopyManagerV1.create(self.wl_server);
+  _ = try wlr.AlphaModifierV1.create(self.wl_server);
+  _ = try wlr.DataControlManagerV1.create(self.wl_server);
+  _ = try wlr.PrimarySelectionDeviceManagerV1.create(self.wl_server);
+  _ = try wlr.SinglePixelBufferManagerV1.create(self.wl_server);
+  _ = try wlr.FractionalScaleManagerV1.create(self.wl_server, 1);
+  _ = try wlr.XdgOutputManagerV1.create(self.wl_server, self.root.output_layout);
+  self.root.scene.setGammaControlManagerV1(try wlr.GammaControlManagerV1.create(self.wl_server));
 
   // Add event listeners to events
   // Backedn events
