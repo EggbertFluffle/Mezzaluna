@@ -8,6 +8,7 @@ const xkb = @import("xkbcommon");
 const wlr = @import("wlroots");
 const zlua = @import("zlua");
 
+const RemoteLua = @import("../RemoteLua.zig");
 const Lua = &@import("../main.zig").lua;
 
 modifier: wlr.Keyboard.ModifierMask,
@@ -25,13 +26,13 @@ pub fn callback(self: *const Keymap, release: bool) void {
 
   const t = Lua.state.rawGetIndex(zlua.registry_index, lua_ref_idx);
   if (t != zlua.LuaType.function) {
-    std.log.err("Failed to call keybind, it doesn't have a callback.", .{});
+    RemoteLua.sendNewLogEntry("Failed to call keybind, it doesn't have a callback.");
     Lua.state.pop(1);
     return;
   }
 
   Lua.state.protectedCall(.{ .args = 0, .results = 0 }) catch {
-    // TODO: add a callback to remote lua when that gets merged
+    RemoteLua.sendNewLogEntry(Lua.state.toString(-1) catch unreachable);
   };
   Lua.state.pop(-1);
 }

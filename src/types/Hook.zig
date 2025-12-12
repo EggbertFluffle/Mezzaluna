@@ -27,7 +27,7 @@ pub fn callback(self: *const Hook, args: anytype) void {
 
   const t = Lua.state.rawGetIndex(zlua.registry_index, self.options.lua_cb_ref_idx);
   if (t != zlua.LuaType.function) {
-    std.log.err("Failed to call hook, it doesn't have a callback.", .{});
+    RemoteLua.sendNewLogEntry("Failed to call hook, it doesn't have a callback.");
     Lua.state.pop(1);
     return;
   }
