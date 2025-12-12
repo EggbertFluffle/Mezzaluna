@@ -85,7 +85,6 @@ pub fn main() !void {
   std.log.info("Starting backend", .{});
   server.backend.start() catch |err| {
     std.debug.panic("Failed to start backend: {}", .{err});
-    return;
   };
 
   std.log.info("Starting server", .{});
