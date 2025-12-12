@@ -32,14 +32,14 @@ pub fn build(b: *std.Build) void {
   scanner.generate("zmez_remote_lua_manager_v1", 1);
   scanner.generate("wl_compositor", 6);
   scanner.generate("wl_subcompositor", 1);
-  scanner.generate("wl_shm", 1);
+  scanner.generate("wl_shm", 2);
   scanner.generate("wl_output", 4);
-  scanner.generate("wl_seat", 7);
+  scanner.generate("wl_seat", 9);
   scanner.generate("wl_data_device_manager", 3);
   scanner.generate("zxdg_decoration_manager_v1", 1);
-  scanner.generate("xdg_wm_base", 6);
-  scanner.generate("zwp_tablet_manager_v2", 1);
-  scanner.generate("zwlr_layer_shell_v1", 4);
+  scanner.generate("xdg_wm_base", 7);
+  scanner.generate("zwp_tablet_manager_v2", 2);
+  scanner.generate("zwlr_layer_shell_v1", 5);
 
   const wayland = b.createModule(.{ .root_source_file = scanner.result });
   const xkbcommon = b.dependency("xkbcommon", .{}).module("xkbcommon");
