@@ -24,6 +24,10 @@
             .url = "git+https://github.com/natecraddock/ziglua#39f8df588d0864070deffa308ef575bf492777a0",
             .hash = "zlua-0.1.0-hGRpC6E9BQDBGKPqzmCRsI6Xd8jH9KohccmX69-L6HyS",
         },
+        .clap = .{
+            .url = "https://github.com/Hejsil/zig-clap/archive/refs/tags/0.11.0.tar.gz",
+            .hash = "clap-0.11.0-oBajB-HnAQDPCKYzwF7rO3qDFwRcD39Q0DALlTSz5H7e",
+        },
     },
     .paths = .{
         "build.zig",

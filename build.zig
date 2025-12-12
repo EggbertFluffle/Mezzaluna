@@ -46,6 +46,7 @@ pub fn build(b: *std.Build) void {
   const pixman = b.dependency("pixman", .{}).module("pixman");
   const wlroots = b.dependency("wlroots", .{}).module("wlroots");
   const zlua = b.dependency("zlua", .{}).module("zlua");
+  const clap = b.dependency("clap", .{}).module("clap");
 
   wlroots.addImport("wayland", wayland);
   wlroots.addImport("xkbcommon", xkbcommon);
@@ -69,14 +70,23 @@ pub fn build(b: *std.Build) void {
   mez.root_module.addImport("xkbcommon", xkbcommon);
   mez.root_module.addImport("wlroots", wlroots);
   mez.root_module.addImport("zlua", zlua);
+  mez.root_module.addImport("clap", clap);
 
   mez.linkSystemLibrary("wayland-server");
   mez.linkSystemLibrary("xkbcommon");
   mez.linkSystemLibrary("pixman-1");
   mez.linkSystemLibrary("libevdev");
 
+  var ret: u8 = undefined;
+  const version = b.runAllowFail(
+    &.{"git", "-C", b.build_root.path orelse ".", "describe", "--tags", "--dirty"},
+    &ret,
+    .Inherit,
+  ) catch "dev\n";
+
   const options = b.addOptions();
   options.addOption([]const u8, "runtime_path_prefix", runtime_path_prefix);
+  options.addOption([]const u8, "version", version);
   mez.root_module.addOptions("config", options);
 
   b.installArtifact(mez);

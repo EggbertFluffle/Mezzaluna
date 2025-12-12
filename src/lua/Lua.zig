@@ -44,6 +44,34 @@ pub fn loadRuntimeDir(self: *zlua.Lua) !void {
   };
 }
 
+pub fn setBaseConfig(self: *zlua.Lua, path: []const u8) !void {
+  {
+    _ = try self.getGlobal("mez");
+    _ = self.getField(-1, "path");
+    defer self.pop(2);
+    const new_path = try std.fs.path.join(gpa, &[_][]const u8{path, "init.lua"});
+    defer gpa.free(new_path);
+    _ = self.pushString(new_path);
+    self.setField(-2, "config");
+  }
+  {
+    _ = try self.getGlobal("mez");
+    _ = self.getField(-1, "path");
+    defer self.pop(2);
+    const cur_path = self.toString(-1) catch "";
+
+    const unsentinel: []const u8 = std.mem.span(cur_path.ptr);
+    const new_path = try std.mem.concat(gpa, u8, &[_][]const u8{
+      unsentinel,
+      ";",
+      path,
+    });
+    defer gpa.free(new_path);
+    _ = self.pushString(new_path);
+    _ = self.setField(-2, "path");
+  }
+}
+
 fn loadBaseConfig(self: *zlua.Lua) !void {
   const lua_path = "mez.path.base_config";
   if (!Bridge.getNestedField(self, @constCast(lua_path[0..]))) {
@@ -113,13 +141,15 @@ pub fn openLibs(self: *zlua.Lua) void {
   }
 }
 
-pub fn init(self: *Lua) !void {
+pub const Config = struct { str: ?[]const u8, enabled: bool, };
+pub fn init(self: *Lua, cfg: Config) !void {
   self.state = try zlua.Lua.init(gpa);
   errdefer self.state.deinit();
   self.state.openLibs();
 
   openLibs(self.state);
 
+  if (!cfg.enabled) try setBaseConfig(self.state, "");
   loadRuntimeDir(self.state) catch |err| if (err == error.LuaRuntime) {
     std.log.warn("{s}", .{try self.state.toString(-1)});
   };
@@ -128,9 +158,15 @@ pub fn init(self: *Lua) !void {
     std.log.warn("{s}", .{try self.state.toString(-1)});
   };
 
-  loadConfigDir(self.state) catch |err| if (err == error.LuaRuntime) {
-    std.log.warn("{s}", .{try self.state.toString(-1)});
-  };
+  if (cfg.str) |path| {
+    defer gpa.free(path);
+    try setBaseConfig(self.state, path);
+  }
+  if (cfg.enabled) {
+    loadConfigDir(self.state) catch |err| if (err == error.LuaRuntime) {
+      std.log.warn("{s}", .{try self.state.toString(-1)});
+    };
+  }
 
   std.log.debug("Loaded lua", .{});
 }
