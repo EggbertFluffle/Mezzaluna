@@ -25,10 +25,8 @@ pub fn put(self: *Events, key: []const u8, hook: *const Hook) !void {
     ll = sll;
   } else {
     ll = try self.allocator.create(std.SinglyLinkedList);
+    ll.* = .{};
     try self.events.put(key, ll);
-    if (self.events.get(key)) |sll| {
-      ll = sll;
-    }
   }
   const data = try self.allocator.create(Node);
   data.* = .{
@@ -47,10 +45,6 @@ pub fn exec(self: *Events, event: []const u8, args: anytype) void {
     while (node) |n| : (node = n.next) {
       const data: *Node = @fieldParentPtr("node", n);
       data.hook.callback(args);
-
-      // FIXME: not sure why but for some reason our ll doesn't seem to want to
-      // admit that there's nothing after the first node.
-      break;
     }
   }
 }
