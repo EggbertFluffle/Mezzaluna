@@ -4,19 +4,19 @@ const std = @import("std");
 const wl = @import("wayland").server.wl;
 const wlr = @import("wlroots");
 
-const Root         = @import("Root.zig");
-const Seat         = @import("Seat.zig");
-const Cursor       = @import("Cursor.zig");
-const Keyboard     = @import("Keyboard.zig");
-const LayerSurface = @import("LayerSurface.zig");
-const Output       = @import("Output.zig");
-const View         = @import("View.zig");
-const Utils        = @import("Utils.zig");
-const Keymap       = @import("types/Keymap.zig");
-const Hook         = @import("types/Hook.zig");
-const Events       = @import("types/Events.zig");
-const Popup = @import("Popup.zig");
-const RemoteLua = @import("RemoteLua.zig");
+const Root             = @import("Root.zig");
+const Seat             = @import("Seat.zig");
+const Cursor           = @import("Cursor.zig");
+const Keyboard         = @import("Keyboard.zig");
+const LayerSurface     = @import("LayerSurface.zig");
+const Output           = @import("Output.zig");
+const View             = @import("View.zig");
+const Utils            = @import("Utils.zig");
+const Keymap           = @import("types/Keymap.zig");
+const Hook             = @import("types/Hook.zig");
+const Events           = @import("types/Events.zig");
+const Popup            = @import("Popup.zig");
+const RemoteLua        = @import("RemoteLua.zig");
 const RemoteLuaManager = @import("RemoteLuaManager.zig");
 
 const gpa = std.heap.c_allocator;
@@ -35,15 +35,13 @@ xdg_shell: *wlr.XdgShell,
 layer_shell: *wlr.LayerShellV1,
 xdg_toplevel_decoration_manager: *wlr.XdgDecorationManagerV1,
 
-// Input
-
 allocator: *wlr.Allocator,
 
 root: Root,
 seat: Seat,
 cursor: Cursor,
 
-// lua data
+// Lua data
 keymaps: std.AutoHashMap(u64, Keymap),
 hooks: std.ArrayList(*Hook),
 events: Events,

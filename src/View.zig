@@ -6,6 +6,8 @@ const wlr = @import("wlroots");
 
 const Popup = @import("Popup.zig");
 const Output = @import("Output.zig");
+const SceneNodeData = @import("SceneNodeData.zig").SceneNodeData;
+
 const Utils = @import("Utils.zig");
 
 const gpa = std.heap.c_allocator;
@@ -20,6 +22,7 @@ output: ?*Output,
 xdg_toplevel: *wlr.XdgToplevel,
 xdg_toplevel_decoration: ?*wlr.XdgToplevelDecorationV1,
 scene_tree: *wlr.SceneTree,
+scene_node_data: SceneNodeData,
 
 // Surface Listeners
 map: wl.Listener(void) = .init(handleMap),
@@ -62,6 +65,8 @@ pub fn initFromTopLevel(xdg_toplevel: *wlr.XdgToplevel) *View {
     .xdg_toplevel = xdg_toplevel,
     .scene_tree = undefined,
     .xdg_toplevel_decoration = null,
+
+    .scene_node_data = .{ .view = self }
   };
 
   self.xdg_toplevel.base.surface.events.unmap.add(&self.unmap);
@@ -76,8 +81,8 @@ pub fn initFromTopLevel(xdg_toplevel: *wlr.XdgToplevel) *View {
     self.scene_tree = try server.root.waiting_room.createSceneXdgSurface(xdg_toplevel.base);
   }
 
-  self.scene_tree.node.data = self;
-  self.xdg_toplevel.base.data = self.scene_tree;
+  self.scene_tree.node.data = &self.scene_node_data;
+  self.xdg_toplevel.base.data = &self.scene_node_data;
 
   self.xdg_toplevel.events.destroy.add(&self.destroy);
   self.xdg_toplevel.base.surface.events.map.add(&self.map);

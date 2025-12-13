@@ -86,8 +86,8 @@ pub fn processCursorMotion(self: *Cursor, time_msec: u32) void {
       // Exit the switch if no focused output exists
       if (output == null) return;
 
-      const viewAtResult = output.?.viewAt(self.wlr_cursor.x, self.wlr_cursor.y);
-      if (viewAtResult == null) {
+      const surfaceAtResult = output.?.surfaceAt(self.wlr_cursor.x, self.wlr_cursor.y);
+      if (surfaceAtResult == null) {
         self.wlr_cursor.setXcursor(self.x_cursor_manager, "default");
         server.seat.wlr_seat.pointerClearFocus();
 
@@ -98,10 +98,16 @@ pub fn processCursorMotion(self: *Cursor, time_msec: u32) void {
         return;
       }
 
-      server.events.exec("ViewPointerMotion", .{viewAtResult.?.view.id, self.wlr_cursor.x, self.wlr_cursor.y});
+      switch (surfaceAtResult.?.scene_node_data.*) {
+        .view => {
+          server.events.exec("ViewPointerMotion", .{surfaceAtResult.?.scene_node_data.view.id, self.wlr_cursor.x, self.wlr_cursor.y});
+        },
+        .layer_surface => { },
+        else => unreachable
+      }
 
-      server.seat.wlr_seat.pointerNotifyEnter(viewAtResult.?.surface, viewAtResult.?.sx, viewAtResult.?.sy);
-      server.seat.wlr_seat.pointerNotifyMotion(time_msec, viewAtResult.?.sx, viewAtResult.?.sy);
+      server.seat.wlr_seat.pointerNotifyEnter(surfaceAtResult.?.surface, surfaceAtResult.?.sx, surfaceAtResult.?.sy);
+      server.seat.wlr_seat.pointerNotifyMotion(time_msec, surfaceAtResult.?.sx, surfaceAtResult.?.sy);
     },
     .move => { // TODO: Have these behave more like pointer motion
       if(self.drag.view) |view| {

@@ -5,11 +5,13 @@ const zwlr = @import("wayland").server.zwlr;
 const wlr = @import("wlroots");
 const std = @import("std");
 
-const Server = @import("Server.zig");
 const Utils =  @import("Utils.zig");
+
+const Server = @import("Server.zig");
 const View =   @import("View.zig");
 const LayerSurface = @import("LayerSurface.zig");
-const SceneNodeData = @import("SceneNodeData.zig");
+
+const SceneNodeData = @import("SceneNodeData.zig").SceneNodeData;
 
 const posix = std.posix;
 const gpa = std.heap.c_allocator;
@@ -21,6 +23,7 @@ id: u64,
 wlr_output: *wlr.Output,
 state: wlr.Output.State,
 tree: *wlr.SceneTree,
+scene_node_data: SceneNodeData,
 scene_output: *wlr.SceneOutput,
 
 layers: struct {
@@ -59,6 +62,7 @@ pub fn init(wlr_output: *wlr.Output) ?*Output {
       .overlay = try self.tree.createSceneTree(),
     },
     .scene_output = try server.root.scene.createSceneOutput(wlr_output),
+    .scene_node_data = SceneNodeData{ .output = self },
     .state = wlr.Output.State.init()
   };
 
@@ -130,7 +134,6 @@ pub fn configureLayers(self: *Output) void {
   self.wlr_output.effectiveResolution(&output_box.width, &output_box.height);
 
   // Should calculate usable area here for LUA view positioning
-
   for ([_]zwlr.LayerShellV1.Layer{ .background, .bottom, .top, .overlay }) |layer| {
     const tree = blk: {
       const trees = [_]*wlr.SceneTree{
@@ -146,43 +149,65 @@ pub fn configureLayers(self: *Output) void {
     while(it.next()) |node| {
       if(node.data == null) continue;
 
-      const layer_surface: *wlr.LayerSurfaceV1 = @ptrCast(@alignCast(node.data.?));
-      _ = layer_surface.configure(@intCast(output_box.width), @intCast(output_box.height));
+      const scene_node_data: *SceneNodeData = @ptrCast(@alignCast(node.data.?));
+      switch (scene_node_data.*) {
+        .layer_surface => {
+          _ = scene_node_data.layer_surface.wlr_layer_surface.configured(
+            @intCast(output_box.width),
+            @intCast(output_box.height)
+          );
+        },
+        else => {
+          std.log.err("Something other than a layer surface found in layer surface scene trees", .{});
+          unreachable;
+        }
+      }
     }
   }
 }
 
-const ViewAtResult = struct {
-    view: *View,
+const SurfaceAtResult = struct {
+    scene_node_data: *SceneNodeData,
     surface: *wlr.Surface,
     sx: f64,
     sy: f64,
 };
 
-pub fn viewAt(self: *Output, lx: f64, ly: f64) ?ViewAtResult {
+pub fn surfaceAt(self: *Output, lx: f64, ly: f64) ?SurfaceAtResult {
   var sx: f64 = undefined;
   var sy: f64 = undefined;
 
-  if(self.layers.content.node.at(lx, ly, &sx, &sy)) |node| {
-    if (node.type != .buffer) return null;
-    const scene_buffer = wlr.SceneBuffer.fromNode(node);
-    const scene_surface = wlr.SceneSurface.tryFromBuffer(scene_buffer) orelse return null;
+  const layers = [_]*wlr.SceneTree{
+    self.layers.top,
+    self.layers.overlay,
+    self.layers.fullscreen,
+    self.layers.content,
+    self.layers.bottom,
+    self.layers.background
+  };
 
-    var it: ?*wlr.SceneTree = node.parent;
+  for(layers) |layer| {
+    if(layer.node.at(lx, ly, &sx, &sy)) |node| {
+      const scene_buffer = wlr.SceneBuffer.fromNode(node);
+      const scene_surface = wlr.SceneSurface.tryFromBuffer(scene_buffer) orelse continue;
 
-    while (it) |n| : (it = n.node.parent) {
-      if (n.node.data == null) continue;
+      if (node.data == null) continue;
+      const scene_node_data: *SceneNodeData = @ptrCast(@alignCast(node.data.?));
 
-      const view: *View = @ptrCast(@alignCast(n.node.data.?));
-
-      return ViewAtResult{
-        .view = view,
-        .surface = scene_surface.surface,
-        .sx = sx,
-        .sy = sy,
-      };
+      switch (scene_node_data.*) {
+        .layer_surface, .view => {
+          return SurfaceAtResult{
+            .scene_node_data = scene_node_data,
+            .surface = scene_surface.surface,
+            .sx = sx,
+            .sy = sy,
+          };
+        },
+        else => continue
+      }
     }
   }
+
   return null;
 }
 
@@ -247,23 +272,27 @@ pub fn arrangeLayers(self: *Output) void {
     const layer: *wlr.SceneTree = @field(self.layers, comptime_layer.name);
     var it = layer.children.safeIterator(.forward);
     while (it.next()) |node| {
-      if (@as(?*SceneNodeData, @alignCast(@ptrCast(node.data)))) |node_data| {
-        const layer_surface = node_data.data.layer_surface;
+      if(node.data == null) continue;
 
-        if (!layer_surface.wlr_layer_surface.initialized) continue;
+      const scene_node_data: *SceneNodeData = @ptrCast(@alignCast(node.data.?));
+      const layer_surface: *LayerSurface = switch(scene_node_data.*) {
+        .layer_surface => @fieldParentPtr("scene_node_data", scene_node_data),
+        else => continue
+      };
 
-        // TEST: river seems to try and prevent clients from taking an
-        // exclusive size greater than half the screen by killing them. Do we
-        // need to? Clients can do quite a bit of nasty stuff and taking
-        // exclusive focus isn't even that bad.
+      if (!layer_surface.wlr_layer_surface.initialized) continue;
 
-        layer_surface.scene_layer_surface.configure(&full_box, &full_box);
+      // TEST: river seems to try and prevent clients from taking an
+      // exclusive size greater than half the screen by killing them. Do we
+      // need to? Clients can do quite a bit of nasty stuff and taking
+      // exclusive focus isn't even that bad.
 
-        // TEST: are these calls useless?
-        // const x = layer_surface.scene_layer_surface.tree.node.x;
-        // const y = layer_surface.scene_layer_surface.tree.node.y;
-        // layer_surface.scene_layer_surface.tree.node.setPosition(x, y);
-      }
+      layer_surface.scene_layer_surface.configure(&full_box, &full_box);
+
+      // TEST: are these calls useless?
+      // const x = layer_surface.scene_layer_surface.tree.node.x;
+      // const y = layer_surface.scene_layer_surface.tree.node.y;
+      // layer_surface.scene_layer_surface.tree.node.setPosition(x, y);
     }
   }
 }

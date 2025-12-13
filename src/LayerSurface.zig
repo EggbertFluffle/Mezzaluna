@@ -6,12 +6,13 @@ const wlr = @import("wlroots");
 
 const Utils = @import("Utils.zig");
 const Output = @import("Output.zig");
-const SceneNodeData = @import("SceneNodeData.zig");
+const SceneNodeData = @import("SceneNodeData.zig").SceneNodeData;
 
 const gpa = std.heap.c_allocator;
 const server = &@import("main.zig").server;
 
 output: *Output,
+scene_node_data: SceneNodeData,
 wlr_layer_surface: *wlr.LayerSurfaceV1,
 scene_layer_surface: *wlr.SceneLayerSurfaceV1,
 
@@ -27,10 +28,25 @@ pub fn init(wlr_layer_surface: *wlr.LayerSurfaceV1) *LayerSurface {
   const self = try gpa.create(LayerSurface);
 
   self.* = .{
-    .output = @ptrCast(@alignCast(wlr_layer_surface.output.?.data)),
+    .output = blk: {
+      // These block things are dangerous
+      // There was no need for this
+      // But I cannot be stopped
+      //        - Powerhungry programmer
+      const data = wlr_layer_surface.output.?.data;
+      if(data == null) unreachable;
+      const scene_node_data: *SceneNodeData = @ptrCast(@alignCast(wlr_layer_surface.output.?.data.?));
+      break :blk switch(scene_node_data.*) {
+        .output => @fieldParentPtr("scene_node_data", scene_node_data),
+        else => unreachable
+      };
+    },
     .wlr_layer_surface = wlr_layer_surface,
     .scene_layer_surface = undefined,
+    .scene_node_data = .{ .layer_surface = self }
   };
+
+  self.wlr_layer_surface.surface.data = &self.scene_node_data;
 
   if(server.seat.focused_output) |output| {
     self.scene_layer_surface = switch (wlr_layer_surface.current.layer) {
@@ -45,11 +61,6 @@ pub fn init(wlr_layer_surface: *wlr.LayerSurfaceV1) *LayerSurface {
     };
   }
 
-  try SceneNodeData.setData(
-      &self.scene_layer_surface.tree.node,
-      .{ .layer_surface = self },
-  );
-  self.wlr_layer_surface.surface.data = &self.scene_layer_surface.tree.node;
 
   self.wlr_layer_surface.events.destroy.add(&self.destroy);
   self.wlr_layer_surface.surface.events.map.add(&self.map);
