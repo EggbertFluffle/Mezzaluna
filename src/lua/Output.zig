@@ -2,8 +2,13 @@ const std = @import("std");
 const zlua = @import("zlua");
 
 const Output = @import("../Output.zig");
+const LuaUtils = @import("LuaUtils.zig");
 
 const server = &@import("../main.zig").server;
+
+fn output_id_err(L: *zlua.Lua) noreturn {
+  L.raiseErrorStr("The output id must be >= 0 and < inf", .{});
+}
 
 /// ---@alias output_id integer
 
@@ -44,7 +49,7 @@ pub fn get_focused_id(L: *zlua.Lua) i32 {
 /// ---@param output_id output_id 0 maps to focused output
 /// ---@return integer?
 pub fn get_rate(L: *zlua.Lua) i32 {
-  const output_id: u64 = @intCast(L.checkInteger(1));
+  const output_id = LuaUtils.coerceInteger(u64, L.checkInteger(1)) catch output_id_err(L);
 
   const output: ?*Output = if (output_id == 0) server.seat.focused_output else server.root.outputById(output_id);
   if(output) |o| {
@@ -60,7 +65,7 @@ pub fn get_rate(L: *zlua.Lua) i32 {
 /// ---@param output_id output_id 0 maps to focused output
 /// ---@return { width: integer, height: integer }?
 pub fn get_resolution(L: *zlua.Lua) i32 {
-  const output_id: u64 = @intCast(L.checkInteger(1));
+  const output_id = LuaUtils.coerceInteger(u64, L.checkInteger(1)) catch output_id_err(L);
 
   const output: ?*Output = if (output_id == 0) server.seat.focused_output else server.root.outputById(output_id);
   if(output) |o| {
@@ -85,7 +90,7 @@ pub fn get_resolution(L: *zlua.Lua) i32 {
 /// ---@param output_id output_id 0 maps to focused output
 /// ---@return string?
 pub fn get_serial(L: *zlua.Lua) i32 {
-  const output_id: u64 = @intCast(L.checkInteger(1));
+  const output_id = LuaUtils.coerceInteger(u64, L.checkInteger(1)) catch output_id_err(L);
 
   const output: ?*Output = if (output_id == 0) server.seat.focused_output else server.root.outputById(output_id);
   if(output) |o| {
@@ -106,7 +111,7 @@ pub fn get_serial(L: *zlua.Lua) i32 {
 /// ---@param output_id output_id 0 maps to focused output
 /// ---@return string?
 pub fn get_make(L: *zlua.Lua) i32 {
-  const output_id: u64 = @intCast(L.checkInteger(1));
+  const output_id = LuaUtils.coerceInteger(u64, L.checkInteger(1)) catch output_id_err(L);
 
   const output: ?*Output = if (output_id == 0) server.seat.focused_output else server.root.outputById(output_id);
   if(output) |o| {
@@ -127,7 +132,7 @@ pub fn get_make(L: *zlua.Lua) i32 {
 /// ---@param output_id output_id 0 maps to focused output
 /// ---@return stirng?
 pub fn get_model(L: *zlua.Lua) i32 {
-  const output_id: u64 = @intCast(L.checkInteger(1));
+  const output_id = LuaUtils.coerceInteger(u64, L.checkInteger(1)) catch output_id_err(L);
 
   const output: ?*Output = if (output_id == 0) server.seat.focused_output else server.root.outputById(output_id);
   if(output) |o| {
@@ -148,7 +153,7 @@ pub fn get_model(L: *zlua.Lua) i32 {
 /// ---@param output_id output_id 0 maps to focused output
 /// ---@return stirng?
 pub fn get_description(L: *zlua.Lua) i32 {
-  const output_id: u64 = @intCast(L.checkInteger(1));
+  const output_id = LuaUtils.coerceInteger(u64, L.checkInteger(1)) catch output_id_err(L);
 
   const output: ?*Output = if (output_id == 0) server.seat.focused_output else server.root.outputById(output_id);
   if(output) |o| {
@@ -169,7 +174,7 @@ pub fn get_description(L: *zlua.Lua) i32 {
 /// ---@param output_id output_id 0 maps to focused output
 /// ---@return stirng
 pub fn get_name(L: *zlua.Lua) i32 {
-  const output_id: u64 = @intCast(L.checkInteger(1));
+  const output_id = LuaUtils.coerceInteger(u64, L.checkInteger(1)) catch output_id_err(L);
 
   const output: ?*Output = if (output_id == 0) server.seat.focused_output else server.root.outputById(output_id);
   if(output) |o| {
