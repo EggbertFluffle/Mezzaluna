@@ -2,6 +2,7 @@ const std = @import("std");
 const zlua = @import("zlua");
 
 const View = @import("../View.zig");
+const LuaUtils = @import("LuaUtils.zig");
 
 const server = &@import("../main.zig").server;
 
@@ -87,12 +88,33 @@ pub fn set_position(L: *zlua.Lua) i32 {
 // ---@param height number height for view
 pub fn set_size(L: *zlua.Lua) i32 {
   const view_id: u64 = @intCast(L.checkInteger(1));
-  const width: i32 = @intFromFloat(@round(L.checkNumber(2)));
-  const height: i32 = @intFromFloat(@round(L.checkNumber(3)));
+  const width = LuaUtils.coerceNumber(i32, L.checkNumber(2)) catch L.raiseErrorStr("The width must be >= 0 and < inf", .{});
+  const height = LuaUtils.coerceNumber(i32, L.checkNumber(3)) catch L.raiseErrorStr("The height must be >= 0 and < inf", .{});
 
   const view: ?*View = if (view_id == 0) server.seat.focused_view else server.root.viewById(view_id);
   if(view) |v| {
     v.setSize(width, height);
+  }
+
+  L.pushNil();
+  return 1;
+}
+
+pub fn get_size(L: *zlua.Lua) i32 {
+  const view_id: u64 = @intCast(L.checkInteger(1));
+  const view: ?*View = if (view_id == 0) server.seat.focused_view else server.root.viewById(view_id);
+  if (view) |v| {
+    L.newTable();
+
+    _ = L.pushString("width");
+    L.pushInteger(@intCast(v.xdg_toplevel.current.width));
+    L.setTable(-3);
+
+    _ = L.pushString("height");
+    L.pushInteger(@intCast(v.xdg_toplevel.current.height));
+    L.setTable(-3);
+
+    return 1;
   }
 
   L.pushNil();
