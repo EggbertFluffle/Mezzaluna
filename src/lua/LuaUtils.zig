@@ -24,3 +24,22 @@ pub fn coerceInteger(comptime x: type, number: zlua.Integer) error{InvalidIntege
     else => @compileError("unsupported type"),
   }
 }
+
+pub fn newLib(L: *zlua.Lua, f: []const zlua.FnReg) void {
+  L.newLibTable(f); // documented as being unavailable, but it is.
+  for (f) |value| {
+    if (value.func == null) continue;
+    L.pushClosure(value.func.?, 0);
+    L.setField(-2, value.name);
+  }
+}
+
+/// makes a best effort to convert the value at the top of the stack to a string
+/// if we're unable to do so return "nil"
+pub fn toStringEx(L: *zlua.Lua) [:0]const u8 {
+  const errstr = "nil";
+  _ = L.getGlobal("tostring") catch return errstr;
+  L.insert(1);
+  L.protectedCall(.{ .args = 1, .results = 1 }) catch return errstr;
+  return L.toString(-1) catch errstr;
+}

@@ -4,6 +4,7 @@ const std = @import("std");
 const config = @import("config");
 const zlua = @import("zlua");
 
+const LuaUtils = @import("LuaUtils.zig");
 const Bridge = @import("Bridge.zig");
 const Fs =     @import("Fs.zig");
 const Input =  @import("Input.zig");
@@ -110,32 +111,32 @@ pub fn openLibs(self: *zlua.Lua) void {
     }
     {
       const fs_funcs = zlua.fnRegsFromType(Fs);
-      self.newLib(fs_funcs);
+      LuaUtils.newLib(self, fs_funcs);
       self.setField(-2, "fs");
     }
     {
       const input_funcs = zlua.fnRegsFromType(Input);
-      self.newLib(input_funcs);
+      LuaUtils.newLib(self, input_funcs);
       self.setField(-2, "input");
     }
     {
       const hook_funcs = zlua.fnRegsFromType(Hook);
-      self.newLib(hook_funcs);
+      LuaUtils.newLib(self, hook_funcs);
       self.setField(-2, "hook");
     }
     {
       const api_funcs = zlua.fnRegsFromType(Api);
-      self.newLib(api_funcs);
+      LuaUtils.newLib(self, api_funcs);
       self.setField(-2, "api");
     }
     {
       const view_funcs = zlua.fnRegsFromType(View);
-      self.newLib(view_funcs);
+      LuaUtils.newLib(self, view_funcs);
       self.setField(-2, "view");
     }
     {
       const output_funcs = zlua.fnRegsFromType(Output);
-      self.newLib(output_funcs);
+      LuaUtils.newLib(self, output_funcs);
       self.setField(-2, "output");
     }
   }

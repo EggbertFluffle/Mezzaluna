@@ -21,8 +21,8 @@
             .hash = "wlroots-0.19.3-jmOlcuL_AwBHhLCwpFsXbTizE3q9BugFmGX-XIxqcPMc",
         },
         .zlua = .{
-            .url = "git+https://github.com/natecraddock/ziglua#39f8df588d0864070deffa308ef575bf492777a0",
-            .hash = "zlua-0.1.0-hGRpC6E9BQDBGKPqzmCRsI6Xd8jH9KohccmX69-L6HyS",
+            .url = "git+https://github.com/natecraddock/ziglua?ref=0.6.0#315b7f25efd29d9e2143d6c0ab685bb7f640450f",
+            .hash = "zlua-0.1.0-hGRpCww-BQCx3cX6zbKWfTgOx6B7Peo4P17RK2hm7-xV",
         },
         .clap = .{
             .url = "https://github.com/Hejsil/zig-clap/archive/refs/tags/0.11.0.tar.gz",

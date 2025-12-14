@@ -4,6 +4,7 @@ const std = @import("std");
 const zlua = @import("zlua");
 const wayland = @import("wayland");
 const Utils = @import("Utils.zig");
+const LuaUtils = @import("lua/LuaUtils.zig");
 const Lua = @import("lua/Lua.zig");
 const wl = wayland.server.wl;
 const mez = wayland.server.zmez;
@@ -65,7 +66,7 @@ remote: *RemoteLua,
       }, 0) catch return catchLuaFail(remote);
       defer gpa.free(str);
 
-      zlua.Lua.loadBuffer(L, str, "=repl", zlua.Mode.text) catch {
+      zlua.Lua.loadBuffer(L, str, "=repl") catch {
         L.pop(L.getTop());
         L.loadString(chunk) catch {
           catchLuaFail(remote);
@@ -82,8 +83,7 @@ remote: *RemoteLua,
       var i: i32 = 1;
       const nresults = L.getTop();
       while (i <= nresults) : (i += 1) {
-        // TODO: support lua5.1 and luajit?
-        sendNewLogEntry(L.toStringEx(i));
+        sendNewLogEntry(LuaUtils.toStringEx(L));
         L.pop(-1);
       }
     },
@@ -101,6 +101,6 @@ fn handleDestroy(_: *mez.RemoteLuaV1, remote_lua: *RemoteLua) void {
 }
 
 fn catchLuaFail(remote: *RemoteLua) void {
-  const err: [:0]const u8 = remote.L.toStringEx(-1);
+  const err: [:0]const u8 = LuaUtils.toStringEx(remote.L);
   sendNewLogEntry(std.mem.sliceTo(err, 0));
 }

@@ -45,7 +45,7 @@ pub fn build(b: *std.Build) void {
   const xkbcommon = b.dependency("xkbcommon", .{}).module("xkbcommon");
   const pixman = b.dependency("pixman", .{}).module("pixman");
   const wlroots = b.dependency("wlroots", .{}).module("wlroots");
-  const zlua = b.dependency("zlua", .{}).module("zlua");
+  const zlua = b.dependency("zlua", .{ .lang = .luajit }).module("zlua");
   const clap = b.dependency("clap", .{}).module("clap");
 
   wlroots.addImport("wayland", wayland);
