@@ -1,4 +1,5 @@
 local env_conf = os.getenv("XDG_CONFIG_HOME")
+
 if not env_conf then
   env_conf = os.getenv("HOME")
   if not env_conf then

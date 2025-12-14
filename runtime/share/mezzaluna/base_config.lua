@@ -282,4 +282,3 @@ function print_table(tbl, indent, seen)
         end
     end
 end
-

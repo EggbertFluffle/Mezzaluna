@@ -131,7 +131,7 @@ pub fn init(self: *Server) void {
   self.root.scene.setGammaControlManagerV1(try wlr.GammaControlManagerV1.create(self.wl_server));
 
   // Add event listeners to events
-  // Backedn events
+  // Backend events
   self.backend.events.new_input.add(&self.new_input);
   self.backend.events.new_output.add(&self.new_output);
 
@@ -211,12 +211,13 @@ fn handleNewXdgToplevelDecoration(
   decoration: *wlr.XdgToplevelDecorationV1
 ) void {
   if(server.root.viewById(@intFromPtr(decoration.toplevel))) |view| {
+    std.log.debug("found view\n", .{});
     view.xdg_toplevel_decoration = decoration;
   }
 }
 
-fn handleNewXdgPopup(_: *wl.Listener(*wlr.XdgPopup), xdg_popup: *wlr.XdgPopup) void {
-    _ = xdg_popup;
+fn handleNewXdgPopup(_: *wl.Listener(*wlr.XdgPopup), _: *wlr.XdgPopup) void {
+  std.log.debug("Unimplemented Server.handleNewXdgPopup\n", .{});
 }
 
 fn handleNewLayerSurface(

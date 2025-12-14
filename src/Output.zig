@@ -92,7 +92,7 @@ pub fn init(wlr_output: *wlr.Output) ?*Output {
   server.root.scene_output_layout.addOutput(layout_output, self.scene_output);
   self.setFocused();
 
-  wlr_output.data = self;
+  wlr_output.data = &self.scene_node_data;
 
   server.events.exec("OutputInitPost", .{self.id});
 
@@ -187,24 +187,44 @@ pub fn surfaceAt(self: *Output, lx: f64, ly: f64) ?SurfaceAtResult {
   };
 
   for(layers) |layer| {
-    if(layer.node.at(lx, ly, &sx, &sy)) |node| {
-      const scene_buffer = wlr.SceneBuffer.fromNode(node);
-      const scene_surface = wlr.SceneSurface.tryFromBuffer(scene_buffer) orelse continue;
+    const node = layer.node.at(lx, ly, &sx, &sy);
+    if(node == null) continue;
 
-      if (node.data == null) continue;
-      const scene_node_data: *SceneNodeData = @ptrCast(@alignCast(node.data.?));
-
-      switch (scene_node_data.*) {
-        .layer_surface, .view => {
-          return SurfaceAtResult{
-            .scene_node_data = scene_node_data,
-            .surface = scene_surface.surface,
-            .sx = sx,
-            .sy = sy,
-          };
-        },
-        else => continue
+    const surface: ?*wlr.Surface = blk: {
+      if (node.?.type == .buffer) {
+        const scene_buffer = wlr.SceneBuffer.fromNode(node.?);
+        if (wlr.SceneSurface.tryFromBuffer(scene_buffer)) |scene_surface| {
+          break :blk scene_surface.surface;
+        }
       }
+      break :blk null;
+    };
+    if(surface == null) continue;
+
+    const scene_node_data: *SceneNodeData = blk: {
+      var n = node.?;
+      while (true) {
+        if (@as(?*SceneNodeData, @ptrCast(@alignCast(n.data)))) |snd| {
+          break :blk snd;
+        }
+        if (n.parent) |parent_tree| {
+          n = &parent_tree.node;
+        } else {
+          continue;
+        }
+      }
+    };
+
+    switch (scene_node_data.*) {
+      .layer_surface, .view => {
+        return SurfaceAtResult{
+          .scene_node_data = scene_node_data,
+          .surface = surface.?,
+          .sx = sx,
+          .sy = sy,
+        };
+      },
+      else => continue
     }
   }
 

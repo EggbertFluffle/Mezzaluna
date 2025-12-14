@@ -32,7 +32,7 @@ mode: enum { passthrough, move, resize } = .passthrough,
 drag: struct {
   start_x:       c_int,
   start_y:       c_int,
-  view: ?*View,
+  view:          ?*View,
   view_offset_x: ?c_int,
   view_offset_y: ?c_int,
 },

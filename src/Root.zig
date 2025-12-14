@@ -74,8 +74,8 @@ pub fn viewById(self: *Root, id: u64) ?*View {
   while(output_it.next()) |o| {
     if(o.output.data == null) continue;
 
-    const scene_node_data: *SceneNodeData = @ptrCast(@alignCast(o.output.data.?));
-    const output: *Output = switch (scene_node_data.*) {
+    const output_snd: *SceneNodeData = @ptrCast(@alignCast(o.output.data.?));
+    const output: *Output = switch (output_snd.*) {
       .output => |output_ptr| output_ptr,
       else => {
         std.log.err("Incorrect scene node type found", .{});
@@ -88,8 +88,14 @@ pub fn viewById(self: *Root, id: u64) ?*View {
     while(node_it.next()) |node| {
       if(node.data == null) continue;
 
-      const view: *View = @as(*View, @ptrCast(@alignCast(node.data.?)));
-      if(view.id == id) return view;
+      const view_snd: *SceneNodeData = @ptrCast(@alignCast(node.data.?));
+
+      // TODO: Should we assert that we want only views to be here
+      //    -- Basically should we use switch statements for snd interactions
+      //    -- Or if statements, for simplicity
+      if(view_snd.* == .view and view_snd.view.id == id) {
+        return view_snd.view;
+      }
     }
   }
 
